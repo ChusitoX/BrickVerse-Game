@@ -1,0 +1,6 @@
+{
+  "name": "BrickVerse",
+  "description": "Offline 3D voxel sandbox platform and game engine featuring customizable avatars, built-in world creator studio, and classic minigames.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
