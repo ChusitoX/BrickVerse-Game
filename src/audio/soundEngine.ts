@@ -351,6 +351,88 @@ class SoundEngine {
     } catch {}
   }
 
+  // Comical cartoon BONK sound
+  public playBonk() {
+    try {
+      this.init();
+      if (!this.ctx || !this.volumeNode || this.volume === 0) return;
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(450, now);
+      osc.frequency.exponentialRampToValueAtTime(80, now + 0.18);
+      gain.gain.setValueAtTime(0.5, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+      osc.connect(gain);
+      gain.connect(this.volumeNode);
+      osc.start(now);
+      osc.stop(now + 0.22);
+    } catch {}
+  }
+
+  // Funny slide whistle
+  public playSlideWhistle() {
+    try {
+      this.init();
+      if (!this.ctx || !this.volumeNode || this.volume === 0) return;
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(300, now);
+      osc.frequency.exponentialRampToValueAtTime(1200, now + 0.25);
+      osc.frequency.exponentialRampToValueAtTime(250, now + 0.55);
+      gain.gain.setValueAtTime(0.25, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.58);
+      osc.connect(gain);
+      gain.connect(this.volumeNode);
+      osc.start(now);
+      osc.stop(now + 0.6);
+    } catch {}
+  }
+
+  // Squeaky toy honk
+  public playSqueak() {
+    try {
+      this.init();
+      if (!this.ctx || !this.volumeNode || this.volume === 0) return;
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(1100, now);
+      osc.frequency.exponentialRampToValueAtTime(1600, now + 0.08);
+      gain.gain.setValueAtTime(0.3, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+      osc.connect(gain);
+      gain.connect(this.volumeNode);
+      osc.start(now);
+      osc.stop(now + 0.12);
+    } catch {}
+  }
+
+  // Banana peel slip
+  public playSlip() {
+    try {
+      this.init();
+      if (!this.ctx || !this.volumeNode || this.volume === 0) return;
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(220, now);
+      osc.frequency.exponentialRampToValueAtTime(880, now + 0.12);
+      osc.frequency.exponentialRampToValueAtTime(110, now + 0.3);
+      gain.gain.setValueAtTime(0.35, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.32);
+      osc.connect(gain);
+      gain.connect(this.volumeNode);
+      osc.start(now);
+      osc.stop(now + 0.35);
+    } catch {}
+  }
+
   public playAlarm() {
     try {
       this.init();

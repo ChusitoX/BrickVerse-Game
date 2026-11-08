@@ -408,7 +408,156 @@ export const hideSeekWorld: BrickWorldData = {
 };
 
 // ==========================================
-// 8. STARTER CREATIVE TEMPLATES
+// 8. RAGDOLL MAYHEM: MEGA STAIR DISMOUNT
+// ==========================================
+export const ragdollWorld: BrickWorldData = {
+  id: 'game_ragdoll_mayhem',
+  name: 'Ragdoll Mayhem: Mega Stair Dismount',
+  description: 'Launch your floppy blocky avatar down a colossal mountain of bouncy stairs, giant bowling pins, spinning obstacles, and bumper trampolines! Score points for crazy flips, bonks, and airtime.',
+  author: 'BrickVerse Official',
+  version: 1,
+  created: 1700000000000,
+  updated: 1700000000000,
+  gameMode: 'ragdoll',
+  environment: {
+    skyColor: '#fb923c',
+    fogDensity: 0.003,
+    ambientColor: '#ffedd5',
+    sunPosition: [50, 80, 20],
+    sunIntensity: 1.4,
+  },
+  spawnPoint: [0, 63.5, -12],
+  parts: [
+    // Summit Cannon Launch Pad
+    createPart('summit_platform', 'block', 'Summit Launch Pad', [0, 62, -10], [18, 2, 16], '#1e293b', 'metal'),
+    createPart('cannon_mount', 'block', 'Cannon Turret Mount', [0, 63.5, -5], [4, 1.2, 4], '#0f172a', 'metal'),
+    createPart('cannon_barrel', 'cylinder', 'Super Launch Cannon', [0, 65, 0], [2.2, 7, 2.2], '#dc2626', 'metal'),
+    createPart('cannon_booster', 'bounce', 'Cannon Blast Pad', [0, 63.2, -5], [3, 0.4, 3], '#facc15', 'neon', true, true, { bounceForce: 46 }),
+
+    // Giant Stair Cascades (Section 1: Y 60 down to Y 42)
+    createPart('stair_1', 'block', 'Mega Step 1', [0, 58, 12], [22, 3, 10], '#3b82f6', 'plastic'),
+    createPart('stair_2', 'block', 'Mega Step 2', [0, 54, 24], [22, 3, 10], '#60a5fa', 'plastic'),
+    createPart('stair_3', 'block', 'Mega Step 3', [0, 50, 36], [22, 3, 10], '#3b82f6', 'plastic'),
+    createPart('stair_4', 'block', 'Mega Step 4', [0, 46, 48], [24, 3, 10], '#60a5fa', 'plastic'),
+    createPart('stair_landing_1', 'block', 'Landing 1 Platform', [0, 42, 62], [28, 2, 14], '#1e293b', 'plastic'),
+
+    // Bouncy Bumpers on Landing 1
+    createPart('bumper_1', 'bounce', 'Bouncy Bumper Left', [-8, 43.6, 62], [4, 1.2, 4], '#f59e0b', 'neon', true, true, { bounceForce: 38 }),
+    createPart('bumper_2', 'bounce', 'Bouncy Bumper Right', [8, 43.6, 62], [4, 1.2, 4], '#f59e0b', 'neon', true, true, { bounceForce: 38 }),
+
+    // Giant Bowling Pins on Landing 1
+    createPart('pin_1_body', 'cylinder', 'Bowling Pin 1 Body', [0, 45, 60], [1.6, 4, 1.6], '#ffffff', 'plastic'),
+    createPart('pin_1_head', 'sphere', 'Bowling Pin 1 Head', [0, 47.5, 60], [2.0, 2.0, 2.0], '#dc2626', 'plastic'),
+    createPart('pin_2_body', 'cylinder', 'Bowling Pin 2 Body', [-4, 45, 64], [1.6, 4, 1.6], '#ffffff', 'plastic'),
+    createPart('pin_2_head', 'sphere', 'Bowling Pin 2 Head', [-4, 47.5, 64], [2.0, 2.0, 2.0], '#dc2626', 'plastic'),
+    createPart('pin_3_body', 'cylinder', 'Bowling Pin 3 Body', [4, 45, 64], [1.6, 4, 1.6], '#ffffff', 'plastic'),
+    createPart('pin_3_head', 'sphere', 'Bowling Pin 3 Head', [4, 47.5, 64], [2.0, 2.0, 2.0], '#dc2626', 'plastic'),
+
+    // Giant Stair Cascades (Section 2: Y 40 down to Y 24)
+    createPart('stair_5', 'block', 'Mega Step 5', [0, 38, 76], [24, 3, 10], '#ec4899', 'plastic'),
+    createPart('stair_6', 'block', 'Mega Step 6', [0, 34, 88], [24, 3, 10], '#f43f5e', 'plastic'),
+    createPart('stair_7', 'block', 'Mega Step 7', [0, 30, 100], [26, 3, 10], '#ec4899', 'plastic'),
+    createPart('stair_8', 'block', 'Mega Step 8', [0, 26, 112], [26, 3, 10], '#f43f5e', 'plastic'),
+    createPart('stair_landing_2', 'block', 'Landing 2 Trampoline Deck', [0, 22, 128], [32, 2, 18], '#0f172a', 'plastic'),
+    createPart('mega_trampoline', 'bounce', 'Super Trampoline', [0, 23.4, 128], [12, 0.4, 12], '#eab308', 'neon', true, true, { bounceForce: 48 }),
+
+    // Giant Rubber Ducky on Landing 2
+    createPart('duck_body', 'sphere', 'Giant Rubber Ducky Body', [-10, 25, 128], [6, 4.5, 6], '#facc15', 'plastic'),
+    createPart('duck_head', 'sphere', 'Giant Rubber Ducky Head', [-10, 28, 126], [3.5, 3.5, 3.5], '#facc15', 'plastic'),
+    createPart('duck_beak', 'wedge', 'Rubber Ducky Beak', [-10, 28, 123.5], [1.2, 1.8, 1.2], '#f97316', 'plastic'),
+
+    // Giant Stair Cascades (Section 3: Y 20 down to Y 2)
+    createPart('stair_9', 'block', 'Mega Step 9', [0, 18, 144], [28, 3, 10], '#10b981', 'plastic'),
+    createPart('stair_10', 'block', 'Mega Step 10', [0, 14, 156], [28, 3, 10], '#059669', 'plastic'),
+    createPart('stair_11', 'block', 'Mega Step 11', [0, 10, 168], [30, 3, 10], '#10b981', 'plastic'),
+    createPart('stair_12', 'block', 'Mega Step 12', [0, 6, 180], [30, 3, 10], '#059669', 'plastic'),
+
+    // Bottom Celebration Arena & Target Landing Rings
+    createPart('bottom_arena', 'block', 'Finish Celebration Arena', [0, 1, 215], [60, 2, 50], '#1e293b', 'plastic'),
+    createPart('bullseye_ring_3', 'cylinder', 'Bronze Bullseye Ring', [0, 2.1, 215], [32, 0.2, 32], '#b45309', 'plastic'),
+    createPart('bullseye_ring_2', 'cylinder', 'Silver Bullseye Ring', [0, 2.2, 215], [20, 0.2, 20], '#94a3b8', 'plastic'),
+    createPart('bullseye_center', 'checkpoint', 'Golden Victory Bullseye', [0, 2.3, 215], [10, 0.2, 10], '#fbbf24', 'neon', true, true, { checkpointIndex: 100 }),
+
+    // Finish Arch & Victory Confetti Pillars
+    createPart('finish_pillar_l', 'cylinder', 'Victory Pillar L', [-16, 8, 235], [2, 14, 2], '#38bdf8', 'metal'),
+    createPart('finish_pillar_r', 'cylinder', 'Victory Pillar R', [16, 8, 235], [2, 14, 2], '#38bdf8', 'metal'),
+    createPart('finish_beam', 'block', 'Finish Banner Beam', [0, 15, 235], [34, 1.5, 2], '#facc15', 'neon'),
+  ],
+};
+
+// ==========================================
+// 9. THE FLOOR IS LAVA: VOLCANO ESCAPE
+// ==========================================
+export const floorLavaWorld: BrickWorldData = {
+  id: 'game_floor_is_lava',
+  name: 'The Floor is Lava: Volcano Escape',
+  description: 'Hot molten magma is rapidly rising! Parkour across floating sofas, vintage TV sets, bouncing air vents, and suspended rock spires before the volcanic cavern fills with lava!',
+  author: 'BrickVerse Official',
+  version: 1,
+  created: 1700000000000,
+  updated: 1700000000000,
+  gameMode: 'floor_lava',
+  environment: {
+    skyColor: '#450a0a',
+    fogDensity: 0.008,
+    ambientColor: '#fca5a5',
+    sunPosition: [20, 50, 10],
+    sunIntensity: 1.5,
+  },
+  spawnPoint: [0, 2.2, 0],
+  parts: [
+    // Volcano Cavern Base Floor (Will be submerged in lava)
+    createPart('lava_base_rock', 'block', 'Volcano Cavern Base', [0, 0.5, 0], [60, 1, 60], '#1c1917', 'plastic'),
+
+    // Cavern Wall Pillars (Natural perimeter)
+    createPart('cav_p1', 'cylinder', 'Obsidian Pillar 1', [-28, 25, -28], [5, 50, 5], '#0c0a09', 'plastic'),
+    createPart('cav_p2', 'cylinder', 'Obsidian Pillar 2', [28, 25, -28], [5, 50, 5], '#0c0a09', 'plastic'),
+    createPart('cav_p3', 'cylinder', 'Obsidian Pillar 3', [-28, 25, 28], [5, 50, 5], '#0c0a09', 'plastic'),
+    createPart('cav_p4', 'cylinder', 'Obsidian Pillar 4', [28, 25, 28], [5, 50, 5], '#0c0a09', 'plastic'),
+
+    // Level 1: Floating Furniture Obstacles (Y = 4 to 8)
+    // Giant Living Room Sofa
+    createPart('sofa_seat', 'block', 'Giant Velvet Sofa Seat', [0, 4.5, 12], [10, 1.2, 5], '#dc2626', 'wood'),
+    createPart('sofa_back', 'block', 'Sofa Backrest', [0, 6.2, 14], [10, 2.5, 1.2], '#b91c1c', 'wood'),
+    createPart('sofa_arm_l', 'block', 'Sofa Armrest Left', [-5.2, 5.5, 12], [1.2, 2.0, 5], '#b91c1c', 'wood'),
+    createPart('sofa_arm_r', 'block', 'Sofa Armrest Right', [5.2, 5.5, 12], [1.2, 2.0, 5], '#b91c1c', 'wood'),
+
+    // Vintage Giant Television (Y = 8.5)
+    createPart('tv_body', 'block', 'Giant Wooden TV Box', [14, 8.5, 8], [8, 5, 5], '#78350f', 'wood'),
+    createPart('tv_screen', 'block', 'TV Screen Glass', [14, 8.5, 5.4], [6.5, 3.8, 0.4], '#38bdf8', 'glass'),
+    createPart('tv_antenna_1', 'cylinder', 'TV Antenna Left', [12, 12, 8], [0.2, 3, 0.2], '#e2e8f0', 'metal'),
+    createPart('tv_antenna_2', 'cylinder', 'TV Antenna Right', [16, 12, 8], [0.2, 3, 0.2], '#e2e8f0', 'metal'),
+
+    // Bouncy Air Vent (Y = 11.5)
+    createPart('vent_duct', 'block', 'Industrial Duct Base', [-12, 11, 10], [5, 2, 5], '#64748b', 'metal'),
+    createPart('vent_grill', 'bounce', 'Super Bouncy Air Vent', [-12, 12.2, 10], [4.5, 0.4, 4.5], '#06b6d4', 'neon', true, true, { bounceForce: 32 }),
+
+    // Level 2: Suspended Obsidian Spires (Y = 15 to 22)
+    createPart('spire_plat_1', 'block', 'Basalt Ledge 1', [-8, 16, -6], [7, 1.2, 7], '#292524', 'plastic'),
+    createPart('spire_plat_2', 'block', 'Basalt Ledge 2', [8, 20, -10], [7, 1.2, 7], '#292524', 'plastic'),
+    createPart('spire_vent', 'bounce', 'Thermal Geyser Vent', [8, 20.8, -10], [3.5, 0.3, 3.5], '#f97316', 'neon', true, true, { bounceForce: 30 }),
+
+    // Suspended Bookshelves & Fridges (Y = 24 to 30)
+    createPart('fridge_body', 'block', 'Suspended Fridge', [-10, 26, -18], [6, 9, 5], '#f8fafc', 'metal'),
+    createPart('fridge_door', 'block', 'Fridge Freezer Door', [-10, 28.5, -15.4], [5.5, 3.5, 0.4], '#e2e8f0', 'metal'),
+
+    createPart('shelf_board_1', 'block', 'Floating Bookshelf 1', [4, 28, -20], [12, 0.8, 4], '#92400e', 'wood'),
+    createPart('shelf_board_2', 'block', 'Floating Bookshelf 2', [12, 33, -12], [8, 0.8, 5], '#92400e', 'wood'),
+
+    // Level 3: Cavern Chandelier & Stepping Stones (Y = 35 to 39)
+    createPart('stone_1', 'cylinder', 'Floating Crystal Hexagon', [0, 36, -4], [6, 1.5, 6], '#a855f7', 'neon'),
+    createPart('stone_vent', 'bounce', 'Crystal Jump Pad', [0, 37, -4], [4, 0.3, 4], '#ec4899', 'neon', true, true, { bounceForce: 32 }),
+
+    // Level 4: Escape Helicopter Summit Platform (Y = 42)
+    createPart('summit_deck', 'block', 'Evacuation Helipad', [0, 42, 10], [16, 2, 16], '#eab308', 'metal'),
+    createPart('helipad_ring', 'cylinder', 'Helipad H Ring', [0, 43.1, 10], [12, 0.2, 12], '#ffffff', 'plastic'),
+    createPart('escape_shuttle', 'block', 'Rescue Pod Cabin', [0, 46, 10], [7, 4, 7], '#0284c7', 'metal'),
+    createPart('escape_beacon', 'checkpoint', 'Rescue Extraction Beacon', [0, 43.3, 10], [5, 0.3, 5], '#22c55e', 'neon', true, true, { checkpointIndex: 99 }),
+  ],
+};
+
+// ==========================================
+// 10. STARTER CREATIVE TEMPLATES
 // ==========================================
 export const classicBaseplateWorld: BrickWorldData = {
   id: 'template_classic_baseplate',
@@ -441,5 +590,8 @@ export const ALL_BUILTIN_WORLDS: BrickWorldData[] = [
   speedRunWorld,
   murderMansionWorld,
   hideSeekWorld,
+  ragdollWorld,
+  floorLavaWorld,
   classicBaseplateWorld,
 ];
+

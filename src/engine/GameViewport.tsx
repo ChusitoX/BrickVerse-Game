@@ -93,6 +93,13 @@ export const GameViewport: React.FC<GameViewportProps> = ({
   const [hideSeekTimer, setHideSeekTimer] = useState(60);
   const [isHideSeekWon, setIsHideSeekWon] = useState(false);
 
+  // Ragdoll & Floor is Lava states
+  const [isRagdolling, setIsRagdolling] = useState(worldData.gameMode === 'ragdoll');
+  const isRagdollingRef = useRef(worldData.gameMode === 'ragdoll');
+  const [ragdollScore, setRagdollScore] = useState(0);
+  const [lavaHeight, setLavaHeight] = useState(0);
+  const [isLavaEscaped, setIsLavaEscaped] = useState(false);
+
   // Mobile touch controls state
   const touchJoystickRef = useRef<{ active: boolean; dx: number; dy: number }>({ active: false, dx: 0, dy: 0 });
   const keysPressed = useRef<{ [key: string]: boolean }>({});
@@ -100,6 +107,23 @@ export const GameViewport: React.FC<GameViewportProps> = ({
   const currentItemRef = useRef<EquippedItemType>(
     worldData.gameMode === 'sword' ? 'sword' : 'none'
   );
+
+  // Toggle Ragdoll Tumble
+  const toggleRagdoll = () => {
+    setIsRagdolling((prev) => {
+      const next = !prev;
+      isRagdollingRef.current = next;
+      if (next) {
+        sound.playSlideWhistle();
+        setGameMessage('Ragdoll Floppy Mode: ON! (R to stand up) 🤸');
+      } else {
+        sound.playJump();
+        setGameMessage('Standing back up! 🧍');
+      }
+      window.setTimeout(() => setGameMessage(''), 2500);
+      return next;
+    });
+  };
 
   // Trigger emote on character
   const triggerEmote = (emote: EmoteType) => {
@@ -333,6 +357,24 @@ export const GameViewport: React.FC<GameViewportProps> = ({
     scene.add(tornadoGroup);
     tornadoGroup.visible = worldData.gameMode === 'disaster';
 
+    // Rising Lava Mesh for Floor is Lava mode
+    let currentLavaY = 0;
+    const lavaMesh = new THREE.Mesh(
+      new THREE.BoxGeometry(120, 2, 120),
+      new THREE.MeshStandardMaterial({
+        color: 0xdc2626,
+        emissive: 0xf97316,
+        emissiveIntensity: 0.95,
+        roughness: 0.3,
+      })
+    );
+    lavaMesh.position.set(0, 0, 0);
+    lavaMesh.visible = worldData.gameMode === 'floor_lava';
+    scene.add(lavaMesh);
+
+    // Banana peels array
+    const bananaPeels: { mesh: THREE.Group; position: THREE.Vector3; life: number }[] = [];
+
     // Respawn helper
     const respawnPlayer = () => {
       sound.playOof();
@@ -340,18 +382,45 @@ export const GameViewport: React.FC<GameViewportProps> = ({
       playerVelocity.set(0, 0, 0);
       currentHealth = 100;
       setHealth(100);
+      if (worldData.gameMode === 'floor_lava') {
+        currentLavaY = 0;
+        setLavaHeight(0);
+      }
       setGameMessage('OOF! Respawned at checkpoint.');
       window.setTimeout(() => setGameMessage(''), 2500);
     };
 
-    // Primary Action (Sword slash, slap, or paintball shot)
+    // Primary Action (Sword slash, slap, paintball shot, banana peel, or rubber chicken)
     const triggerAction = () => {
       if (attackCooldown > 0) return;
       attackCooldown = 0.35;
       attackProgress = 0.01;
       const currentItem = currentItemRef.current;
 
-      if (currentItem === 'paintball_gun') {
+      if (currentItem === 'banana_peel') {
+        sound.playClick();
+        const peelGroup = new THREE.Group();
+        peelGroup.position.copy(playerPos).add(new THREE.Vector3(0, 0.15, 0));
+        const peelMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.4 });
+        for (let i = 0; i < 4; i++) {
+          const petal = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.7, 6), peelMat);
+          const ang = (i / 4) * Math.PI * 2;
+          petal.position.set(Math.cos(ang) * 0.25, 0.1, Math.sin(ang) * 0.25);
+          petal.rotation.z = Math.cos(ang) * 0.5;
+          petal.rotation.x = Math.sin(ang) * 0.5;
+          peelGroup.add(petal);
+        }
+        scene.add(peelGroup);
+        bananaPeels.push({ mesh: peelGroup, position: peelGroup.position.clone(), life: 35 });
+        setGameMessage('Banana peel dropped! Watch out for slips! 🍌');
+        window.setTimeout(() => setGameMessage(''), 2500);
+        return;
+      }
+
+      if (currentItem === 'rubber_chicken') {
+        sound.playSqueak();
+        window.setTimeout(() => sound.playBonk(), 120);
+      } else if (currentItem === 'paintball_gun') {
         sound.playPaintballShot();
         // Spawn bouncing paintball sphere
         const pGeom = new THREE.SphereGeometry(0.3, 8, 8);
@@ -374,16 +443,14 @@ export const GameViewport: React.FC<GameViewportProps> = ({
         });
         scene.add(pMesh);
         return;
-      }
-
-      if (currentItem === 'slap_hand') {
+      } else if (currentItem === 'slap_hand') {
         sound.playHit();
       } else {
         sound.playSlash();
       }
 
       // Check hit on bots
-      const attackRange = currentItem === 'slap_hand' ? 7.0 : 5.5;
+      const attackRange = currentItem === 'slap_hand' || currentItem === 'rubber_chicken' ? 7.0 : 5.5;
       const attackBox = new THREE.Box3().setFromCenterAndSize(
         playerPos.clone().add(new THREE.Vector3(0, 1.5, 0)),
         new THREE.Vector3(attackRange, 4, attackRange)
@@ -392,14 +459,18 @@ export const GameViewport: React.FC<GameViewportProps> = ({
       bots.forEach((bot) => {
         if (bot.health <= 0) return;
         if (attackBox.containsPoint(bot.position)) {
-          const damage = currentItem === 'slap_hand' ? 20 : 35;
+          const damage = currentItem === 'slap_hand' ? 20 : currentItem === 'rubber_chicken' ? 25 : 35;
           bot.health -= damage;
-          sound.playHit();
+          if (currentItem === 'rubber_chicken') {
+            sound.playBonk();
+          } else {
+            sound.playHit();
+          }
 
           // Knockback
-          const knockScalar = currentItem === 'slap_hand' ? 32 : 14;
+          const knockScalar = currentItem === 'slap_hand' ? 32 : currentItem === 'rubber_chicken' ? 38 : 14;
           const knock = bot.position.clone().sub(playerPos).normalize().multiplyScalar(knockScalar);
-          knock.y = 8;
+          knock.y = currentItem === 'rubber_chicken' ? 14 : 8;
           bot.velocity.add(knock);
 
           if (bot.health <= 0) {
@@ -495,6 +566,9 @@ export const GameViewport: React.FC<GameViewportProps> = ({
       if (e.code === 'KeyQ') {
         triggerAction();
       }
+      if (e.code === 'KeyR') {
+        toggleRagdoll();
+      }
       if (e.code === 'KeyB') {
         // Toggle emote dance
         triggerEmote('breakdance');
@@ -503,6 +577,9 @@ export const GameViewport: React.FC<GameViewportProps> = ({
       if (e.code === 'Digit2') triggerEmote('wave');
       if (e.code === 'Digit3') triggerEmote('backflip');
       if (e.code === 'Digit4') triggerEmote('robot');
+      if (e.code === 'Digit5') triggerEmote('floss');
+      if (e.code === 'Digit6') triggerEmote('worm');
+      if (e.code === 'Digit7') triggerEmote('chicken_dance');
       if (e.code === 'Escape') {
         setIsPaused((p) => !p);
       }
@@ -680,6 +757,35 @@ export const GameViewport: React.FC<GameViewportProps> = ({
               return nc;
             });
           }
+        } else if (worldData.gameMode === 'floor_lava' && col.standingOnCheckpoint === 99) {
+          if (!isLavaEscaped) {
+            setIsLavaEscaped(true);
+            sound.playCheckpoint();
+            sound.playCoin();
+            confetti({ particleCount: 130, spread: 90, origin: { y: 0.6 } });
+            setGameMessage('VOLCANO ESCAPE SUCCESSFUL! 🌋🚁 +100 Coins!');
+            setCoins((c) => {
+              const nc = c + 100;
+              StorageManager.updatePlayerStats({
+                coins: nc,
+                lavaEscapes: (StorageManager.getPlayerStats().lavaEscapes || 0) + 1,
+              });
+              return nc;
+            });
+          }
+        } else if (worldData.gameMode === 'ragdoll' && col.standingOnCheckpoint === 100) {
+          sound.playCheckpoint();
+          sound.playCoin();
+          confetti({ particleCount: 150, spread: 100, origin: { y: 0.6 } });
+          setGameMessage(`BULLSEYE LANDING! Ragdoll Score: ${ragdollScore}! +150 Coins! 🎯`);
+          setCoins((c) => {
+            const nc = c + 150;
+            StorageManager.updatePlayerStats({
+              coins: nc,
+              ragdollScore: Math.max(ragdollScore, StorageManager.getPlayerStats().ragdollScore || 0),
+            });
+            return nc;
+          });
         }
       }
 
@@ -717,7 +823,14 @@ export const GameViewport: React.FC<GameViewportProps> = ({
 
       // Update player rig
       playerRig.root.position.copy(playerPos);
-      playerRig.updateAnimation(playerVelocity, isGrounded, !isGrounded && playerVelocity.y > 0, attackProgress, delta);
+      playerRig.updateAnimation(
+        playerVelocity,
+        isGrounded,
+        !isGrounded && playerVelocity.y > 0,
+        attackProgress,
+        delta,
+        isRagdollingRef.current
+      );
 
       // 3. Camera
       cameraController.update(playerPos, delta);
@@ -796,6 +909,34 @@ export const GameViewport: React.FC<GameViewportProps> = ({
             }
             return next;
           });
+        }
+      } else if (worldData.gameMode === 'floor_lava') {
+        if (!isLavaEscaped) {
+          currentLavaY += delta * 1.05;
+          lavaMesh.position.y = currentLavaY;
+          setLavaHeight(Math.round(currentLavaY));
+
+          // Touching lava burns!
+          if (playerPos.y <= currentLavaY + 1.2) {
+            currentHealth -= delta * 55;
+            sound.playHit();
+            setHealth(Math.max(0, Math.round(currentHealth)));
+            if (currentHealth <= 0) {
+              respawnPlayer();
+            }
+          }
+        }
+      } else if (worldData.gameMode === 'ragdoll') {
+        // Accumulate ragdoll tumble points when moving fast or airborne
+        if (isRagdollingRef.current) {
+          const speed = playerVelocity.length();
+          if (speed > 4) {
+            const addedPoints = Math.round(speed * delta * 15);
+            setRagdollScore((s) => s + addedPoints);
+          }
+          if (playerVelocity.y < -22 && isGrounded) {
+            sound.playBonk();
+          }
         }
       }
 
@@ -917,6 +1058,41 @@ export const GameViewport: React.FC<GameViewportProps> = ({
         }
       }
 
+      // Update Banana Peels (Slips!)
+      for (let i = bananaPeels.length - 1; i >= 0; i--) {
+        const bp = bananaPeels[i];
+        bp.life -= delta;
+
+        // Check bot slip
+        bots.forEach((bot) => {
+          if (bot.health > 0 && bot.position.distanceTo(bp.position) < 2.5) {
+            sound.playSlip();
+            bot.velocity.y = 12;
+            bot.velocity.x = (Math.random() - 0.5) * 22;
+            bot.velocity.z = (Math.random() - 0.5) * 22;
+            bp.life = 0;
+          }
+        });
+
+        // Check player slip
+        if (playerPos.distanceTo(bp.position) < 2.2) {
+          sound.playSlip();
+          playerVelocity.y = 15;
+          playerVelocity.x += (Math.random() - 0.5) * 18;
+          playerVelocity.z += (Math.random() - 0.5) * 18;
+          setIsRagdolling(true);
+          isRagdollingRef.current = true;
+          setGameMessage('SLIPPED ON A BANANA PEEL! 🍌😂');
+          window.setTimeout(() => setGameMessage(''), 2500);
+          bp.life = 0;
+        }
+
+        if (bp.life <= 0) {
+          scene.remove(bp.mesh);
+          bananaPeels.splice(i, 1);
+        }
+      }
+
       // Obby timer
       if (worldData.gameMode === 'obby' && !isObbyComplete) {
         timerAccumulator += delta;
@@ -950,6 +1126,10 @@ export const GameViewport: React.FC<GameViewportProps> = ({
         scene.remove(p.mesh);
         p.mesh.geometry.dispose();
       });
+      bananaPeels.forEach((bp) => {
+        scene.remove(bp.mesh);
+      });
+      scene.remove(lavaMesh);
       renderer.dispose();
       if (container.contains(renderer.domElement)) {
         container.removeChild(renderer.domElement);
@@ -1080,6 +1260,30 @@ export const GameViewport: React.FC<GameViewportProps> = ({
             </div>
           )}
 
+          {worldData.gameMode === 'ragdoll' && (
+            <div className="flex items-center gap-4 text-xs font-mono">
+              <span className="text-amber-400 font-bold">🤸 RAGDOLL MAYHEM</span>
+              <span className="text-slate-400">·</span>
+              <span className="text-slate-300">
+                SCORE: <strong className="text-emerald-400 text-sm">{ragdollScore}</strong>
+              </span>
+              <span className="text-slate-400">·</span>
+              <span className={isRagdolling ? 'text-pink-400 font-bold animate-pulse' : 'text-slate-400'}>
+                {isRagdolling ? 'FLOPPING!' : 'STANDING (R to tumble)'}
+              </span>
+            </div>
+          )}
+
+          {worldData.gameMode === 'floor_lava' && (
+            <div className="flex items-center gap-4 text-xs font-mono">
+              <span className="text-orange-500 font-bold">🌋 LAVA HEIGHT: {lavaHeight}m</span>
+              <span className="text-slate-400">·</span>
+              <span className={isLavaEscaped ? 'text-emerald-400 font-bold' : 'text-red-400 font-bold animate-pulse'}>
+                {isLavaEscaped ? 'RESCUED! 🚁' : 'CLIMB UP! 🔥'}
+              </span>
+            </div>
+          )}
+
           {/* Health Bar */}
           <div className="flex items-center gap-2 pl-2 border-l border-white/10">
             <span className="text-xs text-slate-400">HP</span>
@@ -1101,8 +1305,20 @@ export const GameViewport: React.FC<GameViewportProps> = ({
           </div>
         </div>
 
-        {/* Right Action Tools: Music, Emotes, Menu */}
+        {/* Right Action Tools: Ragdoll, Music, Emotes, Menu */}
         <div className="flex items-center gap-2 pointer-events-auto">
+          {/* Ragdoll Toggle Button */}
+          <button
+            onClick={toggleRagdoll}
+            className={`border px-3.5 py-2 rounded-xl text-xs font-bold backdrop-blur-xs transition-all shadow-lg cursor-pointer flex items-center gap-1.5 ${
+              isRagdolling
+                ? 'bg-pink-600 text-white border-pink-400 shadow-pink-900/50 scale-105'
+                : 'bg-slate-900/80 hover:bg-slate-800 text-pink-300 border-white/10'
+            }`}
+          >
+            <span>🤸</span> {isRagdolling ? 'Stand Up (R)' : 'Ragdoll (R)'}
+          </button>
+
           {/* BGM Toggle */}
           <button
             onClick={toggleMusic}
@@ -1117,7 +1333,7 @@ export const GameViewport: React.FC<GameViewportProps> = ({
             onClick={() => setShowEmotesMenu((e) => !e)}
             className="bg-slate-900/80 hover:bg-slate-800 border border-white/10 text-amber-300 px-3.5 py-2 rounded-xl text-xs font-semibold backdrop-blur-xs transition-colors shadow-lg cursor-pointer"
           >
-            🕺 Dances (B)
+            🕺 Dances (1-7)
           </button>
 
           <button
@@ -1131,8 +1347,26 @@ export const GameViewport: React.FC<GameViewportProps> = ({
 
       {/* Emotes Floating Wheel / Bar */}
       {showEmotesMenu && (
-        <div className="absolute top-16 right-4 z-40 bg-slate-900/95 border border-white/20 p-3 rounded-2xl shadow-2xl flex flex-col gap-2 min-w-[200px] backdrop-blur-sm animate-in fade-in">
-          <div className="text-[11px] font-bold text-slate-400 px-2 tracking-wider">CHOOSE EMOTE</div>
+        <div className="absolute top-16 right-4 z-40 bg-slate-900/95 border border-white/20 p-3 rounded-2xl shadow-2xl flex flex-col gap-1.5 min-w-[210px] backdrop-blur-sm animate-in fade-in">
+          <div className="text-[11px] font-bold text-slate-400 px-2 tracking-wider">CHOOSE EMOTE DANCE</div>
+          <button
+            onClick={() => triggerEmote('floss')}
+            className="text-left px-3 py-2 rounded-xl bg-slate-800/80 hover:bg-pink-600 text-xs font-semibold text-white transition-colors cursor-pointer flex items-center gap-2"
+          >
+            <span>💃</span> 5. The Floss Dance
+          </button>
+          <button
+            onClick={() => triggerEmote('chicken_dance')}
+            className="text-left px-3 py-2 rounded-xl bg-slate-800/80 hover:bg-amber-600 text-xs font-semibold text-white transition-colors cursor-pointer flex items-center gap-2"
+          >
+            <span>🐔</span> 7. Chicken Dance
+          </button>
+          <button
+            onClick={() => triggerEmote('worm')}
+            className="text-left px-3 py-2 rounded-xl bg-slate-800/80 hover:bg-emerald-600 text-xs font-semibold text-white transition-colors cursor-pointer flex items-center gap-2"
+          >
+            <span>🐛</span> 6. The Worm Crawl
+          </button>
           <button
             onClick={() => triggerEmote('breakdance')}
             className="text-left px-3 py-2 rounded-xl bg-slate-800/80 hover:bg-sky-600 text-xs font-semibold text-white transition-colors cursor-pointer flex items-center gap-2"
@@ -1182,9 +1416,11 @@ export const GameViewport: React.FC<GameViewportProps> = ({
       )}
 
       {/* Bottom Gear Quick-Bar */}
-      <div className="absolute bottom-14 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-slate-900/80 border border-white/10 p-1.5 rounded-2xl backdrop-blur-xs z-20 shadow-xl">
-        <span className="text-[10px] font-bold text-slate-400 px-2 tracking-wider">GEAR</span>
+      <div className="absolute bottom-14 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-slate-900/85 border border-white/10 p-1.5 rounded-2xl backdrop-blur-xs z-20 shadow-xl max-w-[95vw] overflow-x-auto">
+        <span className="text-[10px] font-bold text-slate-400 px-2 tracking-wider shrink-0">GEAR</span>
         {[
+          { id: 'banana_peel', label: '🍌 Banana Peel' },
+          { id: 'rubber_chicken', label: '🐔 Rubber Chicken' },
           { id: 'sword', label: '⚔️ Sword' },
           { id: 'slap_hand', label: '✋ Slap Hand' },
           { id: 'paintball_gun', label: '🔫 Paintball' },
@@ -1203,7 +1439,7 @@ export const GameViewport: React.FC<GameViewportProps> = ({
                 playerRigRef.current.setEquippedItem(it);
               }
             }}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
               equippedItem === item.id
                 ? 'bg-sky-600 text-white shadow-md'
                 : 'text-slate-300 hover:text-white hover:bg-slate-800'
@@ -1220,11 +1456,13 @@ export const GameViewport: React.FC<GameViewportProps> = ({
         <span>·</span>
         <span><kbd className="bg-slate-800 px-1.5 py-0.5 rounded text-white border border-white/10">Space</kbd> Jump</span>
         <span>·</span>
+        <span><kbd className="bg-slate-800 px-1.5 py-0.5 rounded text-white border border-white/10">R</kbd> Ragdoll</span>
+        <span>·</span>
         <span><kbd className="bg-slate-800 px-1.5 py-0.5 rounded text-white border border-white/10">Right Drag</kbd> Orbit</span>
         <span>·</span>
         <span><kbd className="bg-slate-800 px-1.5 py-0.5 rounded text-white border border-white/10">Q / Click</kbd> Action</span>
         <span>·</span>
-        <span><kbd className="bg-slate-800 px-1.5 py-0.5 rounded text-white border border-white/10">1-4</kbd> Dances</span>
+        <span><kbd className="bg-slate-800 px-1.5 py-0.5 rounded text-white border border-white/10">1-7</kbd> Dances</span>
       </div>
 
       {/* Touch Joystick & Actions */}

@@ -7,7 +7,15 @@ import * as THREE from 'three';
 import { AvatarConfig } from '../types/game';
 import { getFaceTexture, getShirtTexture, getStudTexture } from './proceduralTextures';
 
-export type EmoteType = 'none' | 'breakdance' | 'wave' | 'backflip' | 'robot';
+export type EmoteType =
+  | 'none'
+  | 'breakdance'
+  | 'wave'
+  | 'backflip'
+  | 'robot'
+  | 'floss'
+  | 'worm'
+  | 'chicken_dance';
 export type EquippedItemType =
   | 'none'
   | 'sword'
@@ -15,7 +23,9 @@ export type EquippedItemType =
   | 'gravity_coil'
   | 'slap_hand'
   | 'paintball_gun'
-  | 'boombox';
+  | 'boombox'
+  | 'banana_peel'
+  | 'rubber_chicken';
 
 export interface CharacterRig {
   root: THREE.Group;
@@ -31,7 +41,8 @@ export interface CharacterRig {
     isGrounded: boolean,
     isJumping: boolean,
     attackProgress: number,
-    delta: number
+    delta: number,
+    isRagdolling?: boolean
   ) => void;
   setEquippedItem: (itemType: EquippedItemType) => void;
   playEmote: (emote: EmoteType) => void;
@@ -327,6 +338,123 @@ export function buildCharacter(config: AvatarConfig): CharacterRig {
       rightHorn.rotation.z = 0.8;
       vikGroup.add(rightHorn);
       hatContainer.add(vikGroup);
+    } else if (hat === 'propeller') {
+      const propBeanie = new THREE.Group();
+      propBeanie.position.set(0, 0.65, 0);
+      // Multi-panel Beanie Dome
+      const beanieDome = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.68, 0.68, 0.35, 16),
+        new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.4 })
+      );
+      propBeanie.add(beanieDome);
+      const topPeg = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.06, 0.06, 0.35, 8),
+        new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.9 })
+      );
+      topPeg.position.set(0, 0.3, 0);
+      propBeanie.add(topPeg);
+      // Propeller blades
+      const propGroup = new THREE.Group();
+      propGroup.name = 'propeller_rotor';
+      propGroup.position.set(0, 0.45, 0);
+      const blade1 = new THREE.Mesh(
+        new THREE.BoxGeometry(1.2, 0.04, 0.2),
+        new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.3 })
+      );
+      propGroup.add(blade1);
+      const blade2 = new THREE.Mesh(
+        new THREE.BoxGeometry(0.2, 0.04, 1.2),
+        new THREE.MeshStandardMaterial({ color: 0xeab308, roughness: 0.3 })
+      );
+      propGroup.add(blade2);
+      propBeanie.add(propGroup);
+      hatContainer.add(propBeanie);
+    } else if (hat === 'traffic_cone') {
+      const coneGroup = new THREE.Group();
+      coneGroup.position.set(0, 0.65, 0);
+      // Square collar base
+      const collar = new THREE.Mesh(
+        new THREE.BoxGeometry(1.3, 0.08, 1.3),
+        new THREE.MeshStandardMaterial({ color: 0xf97316, roughness: 0.4 })
+      );
+      coneGroup.add(collar);
+      // Bright orange cone body
+      const coneBody = new THREE.Mesh(
+        new THREE.ConeGeometry(0.55, 1.4, 16),
+        new THREE.MeshStandardMaterial({ color: 0xf97316, roughness: 0.4 })
+      );
+      coneBody.position.set(0, 0.7, 0);
+      coneGroup.add(coneBody);
+      // Reflective white safety band
+      const band = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.38, 0.44, 0.32, 16),
+        new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.2, metalness: 0.3 })
+      );
+      band.position.set(0, 0.55, 0);
+      coneGroup.add(band);
+      hatContainer.add(coneGroup);
+    } else if (hat === 'cheese') {
+      const cheeseGroup = new THREE.Group();
+      cheeseGroup.position.set(0, 0.85, 0);
+      // Triangular yellow cheddar wedge
+      const cheeseMat = new THREE.MeshStandardMaterial({
+        color: 0xfacc15,
+        roughness: 0.5,
+      });
+      const wedgeMesh = new THREE.Mesh(
+        new THREE.ConeGeometry(0.75, 0.6, 3),
+        cheeseMat
+      );
+      wedgeMesh.rotation.y = Math.PI / 6;
+      cheeseGroup.add(wedgeMesh);
+      // Cheese holes
+      const holeMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.7 });
+      const holeGeom = new THREE.SphereGeometry(0.12, 8, 8);
+      const h1 = new THREE.Mesh(holeGeom, holeMat);
+      h1.position.set(0.3, 0.05, 0.2);
+      cheeseGroup.add(h1);
+      const h2 = new THREE.Mesh(holeGeom, holeMat);
+      h2.position.set(-0.25, -0.1, 0.2);
+      cheeseGroup.add(h2);
+      hatContainer.add(cheeseGroup);
+    } else if (hat === 'chicken') {
+      const chickGroup = new THREE.Group();
+      chickGroup.position.set(0, 0.75, 0);
+      // Round white chicken body
+      const chickBody = new THREE.Mesh(
+        new THREE.SphereGeometry(0.65, 14, 14),
+        new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.5 })
+      );
+      chickGroup.add(chickBody);
+      // Red Rooster Comb on top
+      const combMat = new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.4 });
+      for (let i = 0; i < 3; i++) {
+        const combSpike = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.35, 6), combMat);
+        combSpike.position.set(0, 0.65, 0.2 - i * 0.2);
+        chickGroup.add(combSpike);
+      }
+      // Orange beak in front
+      const beak = new THREE.Mesh(
+        new THREE.ConeGeometry(0.14, 0.4, 6),
+        new THREE.MeshStandardMaterial({ color: 0xf97316, roughness: 0.3 })
+      );
+      beak.rotation.x = Math.PI / 2;
+      beak.position.set(0, 0.1, 0.7);
+      chickGroup.add(beak);
+      // Red wattle
+      const wattle = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), combMat);
+      wattle.position.set(0, -0.1, 0.65);
+      chickGroup.add(wattle);
+      // Googly eyes
+      const eyeMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.2 });
+      const eyeGeom = new THREE.SphereGeometry(0.08, 8, 8);
+      const leftEye = new THREE.Mesh(eyeGeom, eyeMat);
+      leftEye.position.set(-0.3, 0.25, 0.5);
+      chickGroup.add(leftEye);
+      const rightEye = new THREE.Mesh(eyeGeom, eyeMat);
+      rightEye.position.set(0.3, 0.25, 0.5);
+      chickGroup.add(rightEye);
+      hatContainer.add(chickGroup);
     }
   }
 
@@ -453,6 +581,108 @@ export function buildCharacter(config: AvatarConfig): CharacterRig {
       spkR.position.set(0.45, 0, 0.2);
       bbGroup.add(spkR);
       backContainer.add(bbGroup);
+    } else if (acc === 'balloons') {
+      const balloonGroup = new THREE.Group();
+      balloonGroup.position.set(0, 0.2, -0.6);
+      const balloonMatRed = new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.2 });
+      const balloonMatBlue = new THREE.MeshStandardMaterial({ color: 0x06b6d4, roughness: 0.2 });
+      const balloonMatYellow = new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.2 });
+      const stringMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+
+      // 3 Floating balloons
+      const bGeom = new THREE.SphereGeometry(0.38, 12, 12);
+      const b1 = new THREE.Mesh(bGeom, balloonMatRed);
+      b1.position.set(-0.4, 1.8, -0.2);
+      balloonGroup.add(b1);
+      const b2 = new THREE.Mesh(bGeom, balloonMatBlue);
+      b2.position.set(0.4, 1.9, -0.1);
+      balloonGroup.add(b2);
+      const b3 = new THREE.Mesh(bGeom, balloonMatYellow);
+      b3.position.set(0.0, 2.3, -0.3);
+      balloonGroup.add(b3);
+
+      // Strings connecting to character back
+      const str1 = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.8, 4), stringMat);
+      str1.position.set(-0.2, 0.9, -0.1);
+      str1.rotation.z = -0.2;
+      balloonGroup.add(str1);
+      const str2 = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.9, 4), stringMat);
+      str2.position.set(0.2, 0.95, -0.05);
+      str2.rotation.z = 0.2;
+      balloonGroup.add(str2);
+      const str3 = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 2.3, 4), stringMat);
+      str3.position.set(0, 1.15, -0.15);
+      balloonGroup.add(str3);
+
+      backContainer.add(balloonGroup);
+    } else if (acc === 'pizza_jet') {
+      const pizzaJet = new THREE.Group();
+      pizzaJet.position.set(0, 0.2, -0.6);
+      // Giant pizza triangle slice
+      const sliceMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.4 });
+      const sliceGeom = new THREE.ConeGeometry(0.9, 2.2, 3);
+      const slice = new THREE.Mesh(sliceGeom, sliceMat);
+      slice.rotation.z = Math.PI;
+      slice.position.set(0, 0.3, 0);
+      pizzaJet.add(slice);
+      // Pepperoni spots
+      const pepMat = new THREE.MeshStandardMaterial({ color: 0xb91c1c, roughness: 0.5 });
+      const p1 = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.05, 8), pepMat);
+      p1.position.set(0, 0.6, -0.3);
+      p1.rotation.x = Math.PI / 2;
+      pizzaJet.add(p1);
+      const p2 = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.05, 8), pepMat);
+      p2.position.set(-0.25, 0.1, -0.2);
+      p2.rotation.x = Math.PI / 2;
+      pizzaJet.add(p2);
+      const p3 = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.05, 8), pepMat);
+      p3.position.set(0.25, 0.1, -0.2);
+      p3.rotation.x = Math.PI / 2;
+      pizzaJet.add(p3);
+      // Twin Rocket Thrusters
+      const thrusterMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.8 });
+      const tL = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.8, 12), thrusterMat);
+      tL.position.set(-0.45, -0.6, 0);
+      pizzaJet.add(tL);
+      const tR = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.8, 12), thrusterMat);
+      tR.position.set(0.45, -0.6, 0);
+      pizzaJet.add(tR);
+      // Flaming jet exhaust nozzles
+      const flameMat = new THREE.MeshStandardMaterial({
+        color: 0xf97316,
+        emissive: 0xf97316,
+        emissiveIntensity: 0.9,
+      });
+      const fL = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.6, 8), flameMat);
+      fL.position.set(-0.45, -1.2, 0);
+      pizzaJet.add(fL);
+      const fR = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.6, 8), flameMat);
+      fR.position.set(0.45, -1.2, 0);
+      pizzaJet.add(fR);
+      backContainer.add(pizzaJet);
+    } else if (acc === 'toilet_paper') {
+      const tpGroup = new THREE.Group();
+      tpGroup.position.set(0, 0.2, -0.6);
+      const rollMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.6 });
+      const roll = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.6, 16), rollMat);
+      roll.rotation.z = Math.PI / 2;
+      tpGroup.add(roll);
+      // Cardboard tube center
+      const tube = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.12, 0.12, 0.62, 12),
+        new THREE.MeshStandardMaterial({ color: 0xa16207, roughness: 0.8 })
+      );
+      tube.rotation.z = Math.PI / 2;
+      tpGroup.add(tube);
+      // Streaming paper trailing behind
+      const streamer = new THREE.Mesh(
+        new THREE.BoxGeometry(0.5, 1.4, 0.04),
+        rollMat
+      );
+      streamer.position.set(0, -0.7, -0.3);
+      streamer.rotation.x = -0.3;
+      tpGroup.add(streamer);
+      backContainer.add(tpGroup);
     }
   }
 
@@ -536,6 +766,53 @@ export function buildCharacter(config: AvatarConfig): CharacterRig {
       );
       bbInHand.add(box);
       rightHandItem.add(bbInHand);
+    } else if (itemType === 'banana_peel') {
+      const peelGroup = new THREE.Group();
+      peelGroup.rotation.x = Math.PI / 2;
+      const peelMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.4 });
+      const tipMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.7 });
+
+      // 4 Petals
+      for (let i = 0; i < 4; i++) {
+        const petal = new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.7, 6), peelMat);
+        const ang = (i / 4) * Math.PI * 2;
+        petal.position.set(Math.cos(ang) * 0.22, 0.2, Math.sin(ang) * 0.22);
+        petal.rotation.z = Math.cos(ang) * 0.4;
+        petal.rotation.x = Math.sin(ang) * 0.4;
+        peelGroup.add(petal);
+      }
+      // Top stem
+      const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.25, 8), tipMat);
+      stem.position.set(0, 0.5, 0);
+      peelGroup.add(stem);
+      rightHandItem.add(peelGroup);
+    } else if (itemType === 'rubber_chicken') {
+      const chickenGroup = new THREE.Group();
+      chickenGroup.rotation.x = Math.PI / 2;
+      const chMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.5 });
+      // Elongated body
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.24, 1.2, 12), chMat);
+      body.position.set(0, 0.5, 0);
+      chickenGroup.add(body);
+      // Head with wide open screaming beak
+      const chHead = new THREE.Mesh(new THREE.SphereGeometry(0.25, 10, 10), chMat);
+      chHead.position.set(0, 1.15, 0);
+      chickenGroup.add(chHead);
+      const beak = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.12, 0.08, 0.35, 8),
+        new THREE.MeshStandardMaterial({ color: 0xf97316, roughness: 0.3 })
+      );
+      beak.rotation.x = Math.PI / 2;
+      beak.position.set(0, 1.15, 0.25);
+      chickenGroup.add(beak);
+      // Red comb
+      const comb = new THREE.Mesh(
+        new THREE.ConeGeometry(0.08, 0.25, 4),
+        new THREE.MeshStandardMaterial({ color: 0xdc2626 })
+      );
+      comb.position.set(0, 1.45, 0);
+      chickenGroup.add(comb);
+      rightHandItem.add(chickenGroup);
     }
   }
 
@@ -555,8 +832,37 @@ export function buildCharacter(config: AvatarConfig): CharacterRig {
     isGrounded: boolean,
     isJumping: boolean,
     attackProgress: number,
-    delta: number
+    delta: number,
+    isRagdolling: boolean = false
   ) => {
+    // Spin propeller hat rotor if equipped
+    const propRotor = hatContainer.getObjectByName('propeller_rotor');
+    if (propRotor) {
+      propRotor.rotation.y += delta * 20;
+    }
+
+    if (isRagdolling) {
+      activeEmote = 'none';
+      walkCycleTime += delta * 15;
+      // Floppy chaotic flailing
+      leftArmPivot.rotation.x = Math.sin(walkCycleTime * 1.3) * 2.2;
+      leftArmPivot.rotation.z = -0.8 + Math.cos(walkCycleTime * 1.7) * 1.2;
+      rightArmPivot.rotation.x = Math.cos(walkCycleTime * 1.5) * 2.2;
+      rightArmPivot.rotation.z = 0.8 + Math.sin(walkCycleTime * 1.9) * 1.2;
+
+      leftLegPivot.rotation.x = Math.sin(walkCycleTime * 1.1) * 1.8;
+      leftLegPivot.rotation.z = -0.4 + Math.cos(walkCycleTime * 0.8) * 0.6;
+      rightLegPivot.rotation.x = -Math.cos(walkCycleTime * 1.4) * 1.8;
+      rightLegPivot.rotation.z = 0.4 + Math.sin(walkCycleTime * 0.9) * 0.6;
+
+      torsoGroup.position.y = 1.2 + Math.abs(Math.sin(walkCycleTime)) * 0.8;
+      torsoGroup.rotation.x += delta * 8;
+      torsoGroup.rotation.z = Math.sin(walkCycleTime * 0.7) * 0.8;
+      headGroup.rotation.x = -0.6 + Math.sin(walkCycleTime * 2) * 0.4;
+      headGroup.rotation.z = Math.cos(walkCycleTime * 1.5) * 0.6;
+      return;
+    }
+
     const horizontalSpeed = Math.sqrt(velocity.x * velocity.x + velocity.z * velocity.z);
 
     // If player starts moving, cancel emote
@@ -594,12 +900,45 @@ export function buildCharacter(config: AvatarConfig): CharacterRig {
         rightArmPivot.rotation.x = step === 0 ? -1.5 : step === 1 ? -0.5 : 0;
         leftArmPivot.rotation.x = step === 2 ? -1.5 : step === 3 ? -0.5 : 0;
         headGroup.rotation.y = step % 2 === 0 ? 0.4 : -0.4;
+      } else if (activeEmote === 'floss') {
+        // Hilarious fast Floss dance
+        const flossPhase = Math.sin(emoteTime * 14);
+        leftArmPivot.rotation.z = -0.4 + flossPhase * 0.5;
+        rightArmPivot.rotation.z = 0.4 + flossPhase * 0.5;
+        leftArmPivot.rotation.x = flossPhase * 0.9;
+        rightArmPivot.rotation.x = -flossPhase * 0.9;
+        torsoGroup.rotation.z = -flossPhase * 0.25;
+        torsoGroup.position.y = 2.0;
+      } else if (activeEmote === 'worm') {
+        // Hilarious ground worm undulation
+        const wave = Math.sin(emoteTime * 8);
+        torsoGroup.position.y = 0.8 + Math.abs(wave) * 0.5;
+        torsoGroup.rotation.x = Math.PI / 2 + wave * 0.4;
+        leftArmPivot.rotation.x = -1.2;
+        rightArmPivot.rotation.x = -1.2;
+        leftLegPivot.rotation.x = 0.6 + wave * 0.4;
+        rightLegPivot.rotation.x = 0.6 - wave * 0.4;
+      } else if (activeEmote === 'chicken_dance') {
+        // Wing flapping chicken dance
+        const flap = Math.sin(emoteTime * 20);
+        leftArmPivot.rotation.z = -1.4 + flap * 0.5;
+        rightArmPivot.rotation.z = 1.4 - flap * 0.5;
+        leftArmPivot.rotation.x = 0.3;
+        rightArmPivot.rotation.x = 0.3;
+        headGroup.position.z = Math.sin(emoteTime * 20) * 0.2;
+        torsoGroup.position.y = 1.8 + Math.abs(Math.sin(emoteTime * 10)) * 0.3;
+        leftLegPivot.rotation.x = Math.sin(emoteTime * 10) * 0.3;
+        rightLegPivot.rotation.x = -Math.sin(emoteTime * 10) * 0.3;
       }
       return;
     }
 
-    // Reset torso flip from backflip if any
+    // Reset torso flip and head if recovering
     torsoGroup.rotation.x = THREE.MathUtils.damp(torsoGroup.rotation.x, 0, 12, delta);
+    torsoGroup.rotation.z = THREE.MathUtils.damp(torsoGroup.rotation.z, 0, 12, delta);
+    headGroup.rotation.x = THREE.MathUtils.damp(headGroup.rotation.x, 0, 12, delta);
+    headGroup.rotation.z = THREE.MathUtils.damp(headGroup.rotation.z, 0, 12, delta);
+    headGroup.position.z = THREE.MathUtils.damp(headGroup.position.z, 0, 12, delta);
 
     if (isGrounded && horizontalSpeed > 0.1) {
       walkCycleTime += delta * horizontalSpeed * 1.8;

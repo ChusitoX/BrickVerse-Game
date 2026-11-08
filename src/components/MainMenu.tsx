@@ -96,7 +96,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
               activeTab === 'discover' ? 'text-white font-bold border-b-2 border-sky-500 py-4' : 'text-slate-400 hover:text-white'
             }`}
           >
-            Discover Games (7)
+            Discover Games (9)
           </button>
           <button
             onClick={() => {
@@ -190,18 +190,36 @@ export const MainMenu: React.FC<MainMenuProps> = ({
             </div>
           </div>
 
-          {/* Grid of 7 Experiences */}
+          {/* Grid of 9 Experiences */}
           <section className="flex flex-col gap-6">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-xl md:text-2xl font-bold text-white tracking-tight">All Experiences (7 Games)</h2>
-                <p className="text-xs text-slate-400">Play iconic parkour, mystery mansions, tycoons, and arenas</p>
+                <h2 className="text-xl md:text-2xl font-bold text-white tracking-tight">All Experiences (9 Games)</h2>
+                <p className="text-xs text-slate-400">Play ragdoll dismount, lava escape, mystery mansions, tycoons, and parkour</p>
               </div>
-              <span className="text-xs text-slate-500 font-mono">7 Ready to Play</span>
+              <span className="text-xs text-slate-500 font-mono">9 Ready to Play</span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {[
+                {
+                  id: 'game_ragdoll_mayhem',
+                  name: 'Ragdoll Mayhem: Mega Stair Dismount',
+                  category: 'Physics & Comedy',
+                  rating: '★ 99%',
+                  badgeEmoji: '🤸',
+                  color: 'from-pink-600/20 to-slate-900',
+                  desc: 'Launch your floppy ragdoll avatar down colossal bouncy stairs, giant bowling pins, and speed ramps! Score points for crazy flips.',
+                },
+                {
+                  id: 'game_floor_is_lava',
+                  name: 'The Floor is Lava: Volcano Escape',
+                  category: 'Parkour & Survival',
+                  rating: '★ 98%',
+                  badgeEmoji: '🌋',
+                  color: 'from-orange-600/20 to-slate-900',
+                  desc: 'Rising molten magma is filling the cavern! Scramble across floating couches, TVs, and air vents to reach the rescue helipad.',
+                },
                 {
                   id: 'game_speed_run',
                   name: 'Speed Run: Neon Galaxy',

@@ -52,7 +52,9 @@ export type GameModeType =
   | 'sword'
   | 'speed_run'
   | 'murder'
-  | 'hide_seek';
+  | 'hide_seek'
+  | 'ragdoll'
+  | 'floor_lava';
 
 export interface BrickWorldData {
   id: string;
@@ -74,9 +76,47 @@ export interface BrickWorldData {
   parts: BrickPart[];
 }
 
-export type AvatarFace = 'smile' | 'chill' | 'epic' | 'evil' | 'cyborg' | 'stare' | 'wink' | 'chad';
-export type AvatarHat = 'none' | 'cap' | 'fedora' | 'headphones' | 'valkyrie' | 'crown' | 'ninja' | 'halo' | 'viking';
-export type AvatarBackAccessory = 'none' | 'sword' | 'wings' | 'jetpack' | 'dragon_wings' | 'skateboard' | 'boombox';
+export type AvatarFace =
+  | 'smile'
+  | 'chill'
+  | 'epic'
+  | 'evil'
+  | 'cyborg'
+  | 'stare'
+  | 'wink'
+  | 'chad'
+  | 'derp'
+  | 'screaming'
+  | 'clown'
+  | 'mustache';
+
+export type AvatarHat =
+  | 'none'
+  | 'cap'
+  | 'fedora'
+  | 'headphones'
+  | 'valkyrie'
+  | 'crown'
+  | 'ninja'
+  | 'halo'
+  | 'viking'
+  | 'propeller'
+  | 'traffic_cone'
+  | 'cheese'
+  | 'chicken';
+
+export type AvatarBackAccessory =
+  | 'none'
+  | 'sword'
+  | 'wings'
+  | 'jetpack'
+  | 'dragon_wings'
+  | 'skateboard'
+  | 'boombox'
+  | 'balloons'
+  | 'pizza_jet'
+  | 'toilet_paper';
+
 export type AvatarShirt = 'classic' | 'tuxedo' | 'hoodie' | 'stripes' | 'armor' | 'police' | 'cyber' | 'ninja' | 'retro';
 
 export interface AvatarConfig {
@@ -114,4 +154,6 @@ export interface PlayerStats {
   swordKills: number;
   mansionEscapes: number;
   hideAndSeekWins: number;
+  ragdollScore: number;
+  lavaEscapes: number;
 }

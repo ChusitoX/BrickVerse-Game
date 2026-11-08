@@ -46,6 +46,8 @@ export const DEFAULT_PLAYER_STATS: PlayerStats = {
   swordKills: 0,
   mansionEscapes: 0,
   hideAndSeekWins: 0,
+  ragdollScore: 0,
+  lavaEscapes: 0,
 };
 
 export class StorageManager {

@@ -381,6 +381,122 @@ export function getFaceTexture(faceType: AvatarFace, skinColor: string = '#facc1
       ctx.lineTo(216, 170);
       ctx.stroke();
       break;
+
+    case 'derp':
+      // Googly eyes looking away + goofy tongue
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(70, 90, 24, 0, Math.PI * 2);
+      ctx.arc(186, 95, 24, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#1e1e1e';
+      ctx.lineWidth = 5;
+      ctx.stroke();
+
+      // Pupils looking in opposite directions
+      ctx.fillStyle = '#1e1e1e';
+      ctx.beginPath();
+      ctx.arc(60, 84, 9, 0, Math.PI * 2);
+      ctx.arc(196, 102, 9, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Wavy derpy mouth
+      ctx.lineWidth = 8;
+      ctx.beginPath();
+      ctx.moveTo(70, 145);
+      ctx.quadraticCurveTo(110, 160, 140, 140);
+      ctx.quadraticCurveTo(170, 120, 195, 145);
+      ctx.stroke();
+
+      // Flapping tongue
+      ctx.fillStyle = '#f43f5e';
+      ctx.beginPath();
+      ctx.arc(140, 165, 16, 0, Math.PI);
+      ctx.fill();
+      break;
+
+    case 'screaming':
+      // Shocked wide open mouth + tiny trembling pupils
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(75, 80, 22, 0, Math.PI * 2);
+      ctx.arc(181, 80, 22, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#1e1e1e';
+      ctx.beginPath();
+      ctx.arc(75, 80, 5, 0, Math.PI * 2);
+      ctx.arc(181, 80, 5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Giant gaping scream oval
+      ctx.fillStyle = '#111827';
+      ctx.beginPath();
+      ctx.ellipse(128, 155, 36, 50, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Cartoon sweat drop
+      ctx.fillStyle = '#38bdf8';
+      ctx.beginPath();
+      ctx.arc(215, 60, 10, 0, Math.PI);
+      ctx.lineTo(215, 42);
+      ctx.closePath();
+      ctx.fill();
+      break;
+
+    case 'clown':
+      // Big red nose + painted diamonds + red smile
+      ctx.fillStyle = '#dc2626';
+      ctx.beginPath();
+      ctx.arc(128, 115, 20, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Blue eye diamonds
+      ctx.fillStyle = '#0284c7';
+      [75, 181].forEach((x) => {
+        ctx.beginPath();
+        ctx.moveTo(x, 60);
+        ctx.lineTo(x + 12, 85);
+        ctx.lineTo(x, 110);
+        ctx.lineTo(x - 12, 85);
+        ctx.closePath();
+        ctx.fill();
+      });
+
+      // Huge red smile
+      ctx.strokeStyle = '#dc2626';
+      ctx.lineWidth = 14;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.arc(128, 125, 62, 0.15 * Math.PI, 0.85 * Math.PI);
+      ctx.stroke();
+      break;
+
+    case 'mustache':
+      // Fancy curly mustache + monocle
+      ctx.fillStyle = '#1e1e1e';
+      ctx.beginPath();
+      ctx.arc(75, 95, 14, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Golden monocle on right eye
+      ctx.strokeStyle = '#eab308';
+      ctx.lineWidth = 6;
+      ctx.beginPath();
+      ctx.arc(181, 95, 24, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Curly gentleman handlebar mustache
+      ctx.fillStyle = '#1e1e1e';
+      ctx.beginPath();
+      ctx.moveTo(128, 140);
+      ctx.quadraticCurveTo(90, 135, 60, 155);
+      ctx.quadraticCurveTo(50, 135, 80, 130);
+      ctx.quadraticCurveTo(110, 125, 128, 135);
+      ctx.quadraticCurveTo(146, 125, 176, 130);
+      ctx.quadraticCurveTo(206, 135, 196, 155);
+      ctx.quadraticCurveTo(166, 135, 128, 140);
+      ctx.fill();
+      break;
   }
 
   const texture = new THREE.CanvasTexture(canvas);

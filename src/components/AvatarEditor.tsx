@@ -232,9 +232,47 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({ currentConfig, onSav
 
   const handleRandomize = () => {
     sound.playBuildPlace();
-    const faces: AvatarFace[] = ['smile', 'chill', 'epic', 'evil', 'cyborg', 'stare', 'wink', 'chad'];
-    const hats: AvatarHat[] = ['none', 'cap', 'fedora', 'headphones', 'valkyrie', 'crown', 'ninja', 'halo', 'viking'];
-    const backs: AvatarBackAccessory[] = ['none', 'sword', 'wings', 'jetpack', 'dragon_wings', 'skateboard', 'boombox'];
+    const faces: AvatarFace[] = [
+      'smile',
+      'chill',
+      'epic',
+      'evil',
+      'cyborg',
+      'stare',
+      'wink',
+      'chad',
+      'derp',
+      'screaming',
+      'clown',
+      'mustache',
+    ];
+    const hats: AvatarHat[] = [
+      'none',
+      'cap',
+      'fedora',
+      'headphones',
+      'valkyrie',
+      'crown',
+      'ninja',
+      'halo',
+      'viking',
+      'propeller',
+      'traffic_cone',
+      'cheese',
+      'chicken',
+    ];
+    const backs: AvatarBackAccessory[] = [
+      'none',
+      'sword',
+      'wings',
+      'jetpack',
+      'dragon_wings',
+      'skateboard',
+      'boombox',
+      'balloons',
+      'pizza_jet',
+      'toilet_paper',
+    ];
     const shirts: AvatarShirt[] = ['classic', 'tuxedo', 'hoodie', 'stripes', 'armor', 'police', 'cyber', 'ninja', 'retro'];
     const randomHex = () => CLASSIC_PALETTE[Math.floor(Math.random() * CLASSIC_PALETTE.length)].hex;
 
@@ -294,9 +332,9 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({ currentConfig, onSav
         <div className="flex gap-1 py-3 border-b border-white/10 text-xs font-semibold overflow-x-auto">
           {[
             { id: 'colors', label: 'Body Colors' },
-            { id: 'faces', label: 'Faces (8)' },
-            { id: 'hats', label: 'Hats & Helms (9)' },
-            { id: 'back', label: 'Back Gear (7)' },
+            { id: 'faces', label: 'Faces (12)' },
+            { id: 'hats', label: 'Hats & Helms (13)' },
+            { id: 'back', label: 'Back Gear (10)' },
             { id: 'clothing', label: 'Clothing (9)' },
           ].map((tab) => (
             <button
@@ -404,6 +442,10 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({ currentConfig, onSav
               <div className="grid grid-cols-2 gap-3">
                 {[
                   { id: 'smile', label: 'Classic Smile', desc: 'The iconic timeless grin' },
+                  { id: 'derp', label: 'Derp Face', desc: 'Googly mismatched eyes & goofy tongue' },
+                  { id: 'screaming', label: 'Screaming Oof', desc: 'Cartoon horror screaming open mouth' },
+                  { id: 'clown', label: 'Circus Clown', desc: 'Big red nose & playful diamonds' },
+                  { id: 'mustache', label: 'Monocle & Stache', desc: 'Dapper mustache & golden monocle' },
                   { id: 'chill', label: 'Chill Shades', desc: 'Cool dark sunglasses' },
                   { id: 'epic', label: 'Epic Face', desc: 'Astonished wide eyes & tongue' },
                   { id: 'evil', label: 'Sinister Evil', desc: 'Sharp teeth & angled eyes' },
@@ -436,6 +478,10 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({ currentConfig, onSav
               <div className="grid grid-cols-2 gap-3">
                 {[
                   { id: 'none', label: 'None', desc: 'Bare block head stud' },
+                  { id: 'propeller', label: 'Propeller Beanie', desc: 'Spinning colorful rotor cap' },
+                  { id: 'traffic_cone', label: 'Traffic Cone', desc: 'Orange caution cone on head' },
+                  { id: 'cheese', label: 'Cheese Wedge', desc: 'Giant Swiss cheddar slice' },
+                  { id: 'chicken', label: 'Clucking Chicken', desc: 'Feathery chicken with comb & beak' },
                   { id: 'cap', label: 'Baseball Cap', desc: 'Red crown with dark visor' },
                   { id: 'fedora', label: 'Classic Fedora', desc: 'Black brim with crimson band' },
                   { id: 'headphones', label: 'Gamer Headset', desc: 'Padded earcups with headband' },
@@ -469,6 +515,9 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({ currentConfig, onSav
               <div className="grid grid-cols-2 gap-3">
                 {[
                   { id: 'none', label: 'None', desc: 'No back attachment' },
+                  { id: 'balloons', label: 'Helium Balloons', desc: 'Floating party balloons bundle' },
+                  { id: 'pizza_jet', label: 'Pizza Rocketpack', desc: 'Pepperoni slice with jet thrusters' },
+                  { id: 'toilet_paper', label: 'TP Streamer', desc: 'Toilet paper roll with streaming paper' },
                   { id: 'sword', label: 'Katana Scabbard', desc: 'Slung diagonal on back' },
                   { id: 'wings', label: 'Cyan Neon Wings', desc: 'Emissive cyber wings' },
                   { id: 'dragon_wings', label: 'Dragon Wings', desc: 'Fiery crimson wings' },
