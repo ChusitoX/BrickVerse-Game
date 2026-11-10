@@ -99,6 +99,34 @@ export const WorldStudio: React.FC<WorldStudioProps> = ({ initialWorld, onTestPl
     scene.add(selBox);
     selectionBoxRef.current = selBox;
 
+    const handleSelectAtCoords = (clientX: number, clientY: number) => {
+      const rect = container.getBoundingClientRect();
+      mouse.current.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.current.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+
+      raycaster.current.setFromCamera(mouse.current, camera);
+      const intersects = raycaster.current.intersectObjects(wr.partsGroup.children, true);
+
+      if (intersects.length > 0) {
+        let hitObj: THREE.Object3D | null = intersects[0].object;
+        while (hitObj && !hitObj.userData?.partId && hitObj.parent) {
+          hitObj = hitObj.parent;
+        }
+
+        if (hitObj?.userData?.partId) {
+          const hitId = hitObj.userData.partId;
+          sound.playClick();
+          setSelectedPartId(hitId);
+
+          if (toolMode === 'delete') {
+            handleDeletePart(hitId);
+          }
+        }
+      } else {
+        setSelectedPartId(null);
+      }
+    };
+
     // Pointer events for camera orbit and clicking
     const onMouseDown = (e: MouseEvent) => {
       if (e.button === 2 || e.button === 1) {
@@ -107,32 +135,7 @@ export const WorldStudio: React.FC<WorldStudioProps> = ({ initialWorld, onTestPl
         prevMouse.current = { x: e.clientX, y: e.clientY };
       } else if (e.button === 0) {
         // Left click = Raycast part selection or paint/delete
-        const rect = container.getBoundingClientRect();
-        mouse.current.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-        mouse.current.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-
-        raycaster.current.setFromCamera(mouse.current, camera);
-        const intersects = raycaster.current.intersectObjects(wr.partsGroup.children, true);
-
-        if (intersects.length > 0) {
-          let hitObj: THREE.Object3D | null = intersects[0].object;
-          while (hitObj && !hitObj.userData?.partId && hitObj.parent) {
-            hitObj = hitObj.parent;
-          }
-
-          if (hitObj?.userData?.partId) {
-            const hitId = hitObj.userData.partId;
-            sound.playClick();
-            setSelectedPartId(hitId);
-
-            if (toolMode === 'delete') {
-              handleDeletePart(hitId);
-            }
-          }
-        } else {
-          // Deselect if clicked empty space
-          setSelectedPartId(null);
-        }
+        handleSelectAtCoords(e.clientX, e.clientY);
       }
     };
 
@@ -159,11 +162,66 @@ export const WorldStudio: React.FC<WorldStudioProps> = ({ initialWorld, onTestPl
 
     const onContextMenu = (e: MouseEvent) => e.preventDefault();
 
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchStartTime = 0;
+    let touchPinchDist = 0;
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 1) {
+        const t = e.touches[0];
+        touchStartX = t.clientX;
+        touchStartY = t.clientY;
+        prevMouse.current = { x: t.clientX, y: t.clientY };
+        touchStartTime = Date.now();
+      } else if (e.touches.length === 2) {
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        touchPinchDist = Math.hypot(dx, dy);
+      }
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 1) {
+        const t = e.touches[0];
+        const dx = t.clientX - prevMouse.current.x;
+        const dy = t.clientY - prevMouse.current.y;
+        prevMouse.current = { x: t.clientX, y: t.clientY };
+        camAngles.current.yaw -= dx * 0.008;
+        camAngles.current.pitch += dy * 0.008;
+        camAngles.current.pitch = Math.max(0.1, Math.min(1.45, camAngles.current.pitch));
+      } else if (e.touches.length === 2) {
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        const dist = Math.hypot(dx, dy);
+        if (touchPinchDist > 0) {
+          const diff = dist - touchPinchDist;
+          camAngles.current.dist = Math.max(5, Math.min(120, camAngles.current.dist - diff * 0.15));
+        }
+        touchPinchDist = dist;
+      }
+    };
+
+    const onTouchEnd = (e: TouchEvent) => {
+      if (e.changedTouches.length > 0 && e.touches.length === 0) {
+        const t = e.changedTouches[0];
+        const dt = Date.now() - touchStartTime;
+        const distMoved = Math.hypot(t.clientX - touchStartX, t.clientY - touchStartY);
+        if (dt < 300 && distMoved < 15) {
+          handleSelectAtCoords(t.clientX, t.clientY);
+        }
+      }
+      touchPinchDist = 0;
+    };
+
     container.addEventListener('mousedown', onMouseDown);
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
     container.addEventListener('wheel', onWheel, { passive: true });
     container.addEventListener('contextmenu', onContextMenu);
+    container.addEventListener('touchstart', onTouchStart, { passive: true });
+    container.addEventListener('touchmove', onTouchMove, { passive: true });
+    container.addEventListener('touchend', onTouchEnd, { passive: true });
 
     const onResize = () => {
       if (!mountRef.current) return;
@@ -200,6 +258,9 @@ export const WorldStudio: React.FC<WorldStudioProps> = ({ initialWorld, onTestPl
       window.removeEventListener('mouseup', onMouseUp);
       container.removeEventListener('wheel', onWheel);
       container.removeEventListener('contextmenu', onContextMenu);
+      container.removeEventListener('touchstart', onTouchStart);
+      container.removeEventListener('touchmove', onTouchMove);
+      container.removeEventListener('touchend', onTouchEnd);
       window.removeEventListener('resize', onResize);
       wr.clear();
       renderer.dispose();
@@ -453,11 +514,11 @@ export const WorldStudio: React.FC<WorldStudioProps> = ({ initialWorld, onTestPl
         </div>
 
         {/* 3D WebGL Canvas */}
-        <div ref={mountRef} className="w-full h-full cursor-grab active:cursor-grabbing" />
+        <div ref={mountRef} className="w-full h-full cursor-grab active:cursor-grabbing touch-none" />
 
         {/* Orbit Hint */}
         <div className="absolute bottom-4 left-4 bg-slate-900/80 border border-white/10 px-3.5 py-1.5 rounded-full text-xs text-slate-400 backdrop-blur-xs pointer-events-none z-10">
-          Right Click + Drag to Orbit · Scroll to Zoom · Left Click to Select
+          Touch or Right-drag to Orbit · Pinch to Zoom · Tap to Select
         </div>
 
         {/* Save confirmation toast */}

@@ -118,24 +118,25 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({ currentConfig, onSav
     let prevX = 0;
     let rotY = 0;
 
-    const onPointerDown = (e: MouseEvent) => {
+    const onPointerDown = (e: PointerEvent) => {
       isDragging = true;
       prevX = e.clientX;
     };
-    const onPointerMove = (e: MouseEvent) => {
+    const onPointerMove = (e: PointerEvent) => {
       if (!isDragging) return;
       const dx = e.clientX - prevX;
       prevX = e.clientX;
-      rotY += dx * 0.01;
+      rotY += dx * 0.012;
       rig.root.rotation.y = rotY;
     };
     const onPointerUp = () => {
       isDragging = false;
     };
 
-    container.addEventListener('mousedown', onPointerDown);
-    window.addEventListener('mousemove', onPointerMove);
-    window.addEventListener('mouseup', onPointerUp);
+    container.addEventListener('pointerdown', onPointerDown);
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerUp);
 
     const onResize = () => {
       if (!mountRef.current) return;
@@ -163,9 +164,10 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({ currentConfig, onSav
 
     return () => {
       cancelAnimationFrame(frameId);
-      container.removeEventListener('mousedown', onPointerDown);
-      window.removeEventListener('mousemove', onPointerMove);
-      window.removeEventListener('mouseup', onPointerUp);
+      container.removeEventListener('pointerdown', onPointerDown);
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('pointercancel', onPointerUp);
       window.removeEventListener('resize', onResize);
       renderer.dispose();
       if (container.contains(renderer.domElement)) {
@@ -300,10 +302,10 @@ export const AvatarEditor: React.FC<AvatarEditorProps> = ({ currentConfig, onSav
     <div className="flex flex-col md:flex-row w-full h-full bg-slate-950 text-slate-100 overflow-hidden select-none">
       {/* Left 3D Turntable Viewport */}
       <div className="relative flex-1 h-[45vh] md:h-full bg-radial from-slate-900 to-slate-950 flex items-center justify-center">
-        <div ref={mountRef} className="w-full h-full cursor-grab active:cursor-grabbing" />
+        <div ref={mountRef} className="w-full h-full cursor-grab active:cursor-grabbing touch-none" />
 
         <div className="absolute bottom-4 left-4 bg-slate-900/80 border border-white/10 px-3.5 py-1.5 rounded-full text-xs text-slate-300 backdrop-blur-xs">
-          Drag to spin 360° · Crisp vibrant skin colors
+          Swipe or drag to spin 360° · Vibrant colors
         </div>
 
         {saveSuccess && (

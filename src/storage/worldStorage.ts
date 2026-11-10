@@ -159,12 +159,26 @@ export class StorageManager {
 
   // Settings
   public static getUserSettings(): UserSettings {
+    const isTouch =
+      typeof window !== 'undefined' &&
+      ('ontouchstart' in window || (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0));
+
+    const defaultWithTouch: UserSettings = {
+      ...DEFAULT_USER_SETTINGS,
+      showTouchControls: isTouch,
+    };
+
     try {
       const raw = localStorage.getItem(STORAGE_KEY_SETTINGS);
-      if (!raw) return DEFAULT_USER_SETTINGS;
-      return { ...DEFAULT_USER_SETTINGS, ...JSON.parse(raw) };
+      if (!raw) return defaultWithTouch;
+      const parsed = JSON.parse(raw);
+      return {
+        ...defaultWithTouch,
+        ...parsed,
+        showTouchControls: parsed.showTouchControls ?? isTouch,
+      };
     } catch {
-      return DEFAULT_USER_SETTINGS;
+      return defaultWithTouch;
     }
   }
 

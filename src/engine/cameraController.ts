@@ -54,6 +54,38 @@ export class CameraController {
     this.pitch = Math.max(this.minPitch, Math.min(this.maxPitch, this.pitch));
   }
 
+  public isFirstPerson: boolean = false;
+  private savedThirdPersonDistance: number = 14;
+
+  public togglePerspective(): boolean {
+    this.isFirstPerson = !this.isFirstPerson;
+    if (this.isFirstPerson) {
+      this.savedThirdPersonDistance = Math.max(6, this.distance);
+      this.minDistance = 0.5;
+      this.distance = 0.5;
+    } else {
+      this.minDistance = 3.5;
+      this.distance = this.savedThirdPersonDistance;
+    }
+    return this.isFirstPerson;
+  }
+
+  public addTouchDelta(dx: number, dy: number) {
+    const sensFactor = 0.007 * this.sensitivity;
+    this.yaw -= dx * sensFactor;
+    const yFactor = this.invertY ? -sensFactor : sensFactor;
+    this.pitch += dy * yFactor;
+    this.pitch = Math.max(this.minPitch, Math.min(this.maxPitch, this.pitch));
+  }
+
+  public pinchZoom(deltaDist: number) {
+    this.distance += deltaDist;
+    this.distance = Math.max(this.minDistance, Math.min(this.maxDistance, this.distance));
+    if (this.distance > 2) {
+      this.isFirstPerson = false;
+    }
+  }
+
   public onPointerUp() {
     this.isDragging = false;
   }
@@ -62,6 +94,9 @@ export class CameraController {
     const zoomSpeed = 0.015;
     this.distance += deltaY * zoomSpeed;
     this.distance = Math.max(this.minDistance, Math.min(this.maxDistance, this.distance));
+    if (this.distance > 2) {
+      this.isFirstPerson = false;
+    }
   }
 
   public update(playerPos: THREE.Vector3, delta: number) {

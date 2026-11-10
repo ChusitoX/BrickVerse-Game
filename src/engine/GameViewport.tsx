@@ -102,14 +102,28 @@ export const GameViewport: React.FC<GameViewportProps> = ({
 
   // Mobile touch controls state
   const touchJoystickRef = useRef<{ active: boolean; dx: number; dy: number }>({ active: false, dx: 0, dy: 0 });
+  const [joystickKnob, setJoystickKnob] = useState<{ x: number; y: number; active: boolean }>({ x: 0, y: 0, active: false });
+  const [showMobileGear, setShowMobileGear] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isFirstPerson, setIsFirstPerson] = useState(false);
+
   const keysPressed = useRef<{ [key: string]: boolean }>({});
   const playerRigRef = useRef<CharacterRig | null>(null);
+  const cameraControllerRef = useRef<CameraController | null>(null);
+  const triggerActionRef = useRef<() => void>(() => {});
+  const triggerInteractRef = useRef<() => void>(() => {});
+
   const currentItemRef = useRef<EquippedItemType>(
     worldData.gameMode === 'sword' ? 'sword' : 'none'
   );
 
   // Toggle Ragdoll Tumble
   const toggleRagdoll = () => {
+    try {
+      navigator?.vibrate?.(20);
+    } catch {
+      // ignore
+    }
     setIsRagdolling((prev) => {
       const next = !prev;
       isRagdollingRef.current = next;
@@ -125,8 +139,44 @@ export const GameViewport: React.FC<GameViewportProps> = ({
     });
   };
 
+  // Toggle Camera 1st / 3rd Person
+  const toggleCameraPerspective = () => {
+    try {
+      navigator?.vibrate?.(12);
+    } catch {
+      // ignore
+    }
+    if (cameraControllerRef.current) {
+      const is1st = cameraControllerRef.current.togglePerspective();
+      setIsFirstPerson(is1st);
+      setGameMessage(is1st ? 'View: 1st Person POV 👁️' : 'View: 3rd Person Orbit 🎥');
+      window.setTimeout(() => setGameMessage(''), 1800);
+    }
+  };
+
+  // Toggle Fullscreen for native mobile app feel
+  const toggleFullscreen = () => {
+    try {
+      navigator?.vibrate?.(15);
+    } catch {
+      // ignore
+    }
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen?.().catch(() => {});
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen?.().catch(() => {});
+      setIsFullscreen(false);
+    }
+  };
+
   // Trigger emote on character
   const triggerEmote = (emote: EmoteType) => {
+    try {
+      navigator?.vibrate?.(15);
+    } catch {
+      // ignore
+    }
     sound.playClick();
     if (playerRigRef.current) {
       playerRigRef.current.playEmote(emote);
@@ -212,6 +262,7 @@ export const GameViewport: React.FC<GameViewportProps> = ({
     const cameraController = new CameraController(camera);
     cameraController.sensitivity = userSettings.mouseSensitivity;
     cameraController.invertY = userSettings.invertY;
+    cameraControllerRef.current = cameraController;
 
     // 4. World Renderer
     const worldRenderer = new WorldRenderer(scene);
@@ -556,6 +607,74 @@ export const GameViewport: React.FC<GameViewportProps> = ({
       }
     };
 
+    triggerActionRef.current = triggerAction;
+    triggerInteractRef.current = triggerInteract;
+
+    // Mobile touch look & pinch-to-zoom controls
+    let lookTouchId: number | null = null;
+    let prevLookPos = { x: 0, y: 0 };
+    let initialPinchDist = 0;
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 1) {
+        const touch = e.touches[0];
+        const rect = container.getBoundingClientRect();
+        const relX = touch.clientX - rect.left;
+        const relY = touch.clientY - rect.top;
+        // Don't capture touches on bottom-left quadrant (where virtual joystick is)
+        const isLeftBottom = relX < rect.width * 0.45 && relY > rect.height * 0.52;
+        if (!isLeftBottom) {
+          lookTouchId = touch.identifier;
+          prevLookPos = { x: touch.clientX, y: touch.clientY };
+        }
+      } else if (e.touches.length === 2) {
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        initialPinchDist = Math.hypot(dx, dy);
+        lookTouchId = null;
+      }
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 2 && initialPinchDist > 0) {
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        const dist = Math.hypot(dx, dy);
+        const deltaDist = dist - initialPinchDist;
+        cameraController.pinchZoom(deltaDist * 0.65);
+        initialPinchDist = dist;
+      } else if (lookTouchId !== null) {
+        for (let i = 0; i < e.touches.length; i++) {
+          const touch = e.touches[i];
+          if (touch.identifier === lookTouchId) {
+            const dx = touch.clientX - prevLookPos.x;
+            const dy = touch.clientY - prevLookPos.y;
+            prevLookPos = { x: touch.clientX, y: touch.clientY };
+            cameraController.addTouchDelta(dx, dy);
+            break;
+          }
+        }
+      }
+    };
+
+    const onTouchEnd = (e: TouchEvent) => {
+      if (lookTouchId !== null) {
+        let stillActive = false;
+        for (let i = 0; i < e.touches.length; i++) {
+          if (e.touches[i].identifier === lookTouchId) {
+            stillActive = true;
+            break;
+          }
+        }
+        if (!stillActive) {
+          lookTouchId = null;
+        }
+      }
+      if (e.touches.length < 2) {
+        initialPinchDist = 0;
+      }
+    };
+
     // Keyboard handlers
     const onKeyDown = (e: KeyboardEvent) => {
       keysPressed.current[e.code] = true;
@@ -618,6 +737,10 @@ export const GameViewport: React.FC<GameViewportProps> = ({
     window.addEventListener('mouseup', onMouseUp);
     container.addEventListener('wheel', onWheel, { passive: true });
     container.addEventListener('contextmenu', onContextMenu);
+    container.addEventListener('touchstart', onTouchStart, { passive: true });
+    container.addEventListener('touchmove', onTouchMove, { passive: true });
+    container.addEventListener('touchend', onTouchEnd, { passive: true });
+    container.addEventListener('touchcancel', onTouchEnd, { passive: true });
 
     const onResize = () => {
       if (!mountRef.current) return;
@@ -1119,6 +1242,10 @@ export const GameViewport: React.FC<GameViewportProps> = ({
       window.removeEventListener('mouseup', onMouseUp);
       container.removeEventListener('wheel', onWheel);
       container.removeEventListener('contextmenu', onContextMenu);
+      container.removeEventListener('touchstart', onTouchStart);
+      container.removeEventListener('touchmove', onTouchMove);
+      container.removeEventListener('touchend', onTouchEnd);
+      container.removeEventListener('touchcancel', onTouchEnd);
       window.removeEventListener('resize', onResize);
 
       worldRenderer.clear();
@@ -1138,30 +1265,49 @@ export const GameViewport: React.FC<GameViewportProps> = ({
   }, [worldData, avatarConfig, userSettings]);
 
   const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    e.stopPropagation();
     const touch = e.touches[0];
     const rect = e.currentTarget.getBoundingClientRect();
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 2;
-    touchJoystickRef.current = {
-      active: true,
-      dx: (touch.clientX - centerX) / (rect.width / 2),
-      dy: (touch.clientY - centerY) / (rect.height / 2),
-    };
+    const radius = rect.width / 2;
+    const rawDx = (touch.clientX - (rect.left + radius)) / radius;
+    const rawDy = (touch.clientY - (rect.top + radius)) / radius;
+    const dist = Math.hypot(rawDx, rawDy);
+    const clampedDist = Math.min(1.0, dist);
+    const angle = Math.atan2(rawDy, rawDx);
+    const dx = clampedDist * Math.cos(angle);
+    const dy = clampedDist * Math.sin(angle);
+
+    touchJoystickRef.current = { active: true, dx, dy };
+    setJoystickKnob({ x: dx * 38, y: dy * 38, active: true });
+    try {
+      navigator?.vibrate?.(10);
+    } catch {
+      // ignore
+    }
   };
 
   const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    e.stopPropagation();
     if (!touchJoystickRef.current.active) return;
     const touch = e.touches[0];
     const rect = e.currentTarget.getBoundingClientRect();
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 2;
-    const dx = Math.max(-1, Math.min(1, (touch.clientX - centerX) / (rect.width / 2)));
-    const dy = Math.max(-1, Math.min(1, (touch.clientY - centerY) / (rect.height / 2)));
+    const radius = rect.width / 2;
+    const rawDx = (touch.clientX - (rect.left + radius)) / radius;
+    const rawDy = (touch.clientY - (rect.top + radius)) / radius;
+    const dist = Math.hypot(rawDx, rawDy);
+    const clampedDist = Math.min(1.0, dist);
+    const angle = Math.atan2(rawDy, rawDx);
+    const dx = clampedDist * Math.cos(angle);
+    const dy = clampedDist * Math.sin(angle);
+
     touchJoystickRef.current = { active: true, dx, dy };
+    setJoystickKnob({ x: dx * 38, y: dy * 38, active: true });
   };
 
-  const handleTouchEnd = () => {
+  const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    e.stopPropagation();
     touchJoystickRef.current = { active: false, dx: 0, dy: 0 };
+    setJoystickKnob({ x: 0, y: 0, active: false });
   };
 
   return (
@@ -1305,42 +1451,62 @@ export const GameViewport: React.FC<GameViewportProps> = ({
           </div>
         </div>
 
-        {/* Right Action Tools: Ragdoll, Music, Emotes, Menu */}
-        <div className="flex items-center gap-2 pointer-events-auto">
+        {/* Right Action Tools: Fullscreen, Perspective, Ragdoll, Music, Emotes, Menu */}
+        <div className="flex items-center gap-1.5 sm:gap-2 pointer-events-auto">
+          {/* Fullscreen Toggle */}
+          <button
+            onClick={toggleFullscreen}
+            title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
+            className="bg-slate-900/80 hover:bg-slate-800 border border-white/10 text-slate-200 px-2.5 py-2 rounded-xl text-xs font-semibold backdrop-blur-xs transition-colors shadow-lg cursor-pointer flex items-center gap-1"
+          >
+            <span>{isFullscreen ? '↙' : '⛶'}</span>
+            <span className="hidden sm:inline">{isFullscreen ? 'Exit' : 'Full'}</span>
+          </button>
+
+          {/* Perspective Toggle (1st / 3rd person) */}
+          <button
+            onClick={toggleCameraPerspective}
+            title={isFirstPerson ? 'Switch to 3rd Person Orbit' : 'Switch to 1st Person POV'}
+            className="bg-slate-900/80 hover:bg-slate-800 border border-white/10 text-cyan-300 px-2.5 py-2 rounded-xl text-xs font-semibold backdrop-blur-xs transition-colors shadow-lg cursor-pointer flex items-center gap-1"
+          >
+            <span>{isFirstPerson ? '👁️' : '🎥'}</span>
+            <span className="hidden sm:inline">{isFirstPerson ? '1st' : '3rd'}</span>
+          </button>
+
           {/* Ragdoll Toggle Button */}
           <button
             onClick={toggleRagdoll}
-            className={`border px-3.5 py-2 rounded-xl text-xs font-bold backdrop-blur-xs transition-all shadow-lg cursor-pointer flex items-center gap-1.5 ${
+            className={`border px-3 py-2 rounded-xl text-xs font-bold backdrop-blur-xs transition-all shadow-lg cursor-pointer flex items-center gap-1.5 ${
               isRagdolling
                 ? 'bg-pink-600 text-white border-pink-400 shadow-pink-900/50 scale-105'
                 : 'bg-slate-900/80 hover:bg-slate-800 text-pink-300 border-white/10'
             }`}
           >
-            <span>🤸</span> {isRagdolling ? 'Stand Up (R)' : 'Ragdoll (R)'}
+            <span>🤸</span> <span className="hidden md:inline">{isRagdolling ? 'Stand Up (R)' : 'Ragdoll (R)'}</span>
           </button>
 
           {/* BGM Toggle */}
           <button
             onClick={toggleMusic}
             title={isMusicPlaying ? 'Mute Music' : 'Play Music'}
-            className="bg-slate-900/80 hover:bg-slate-800 border border-white/10 text-slate-200 px-3 py-2 rounded-xl text-xs font-semibold backdrop-blur-xs transition-colors shadow-lg cursor-pointer"
+            className="bg-slate-900/80 hover:bg-slate-800 border border-white/10 text-slate-200 px-2.5 py-2 rounded-xl text-xs font-semibold backdrop-blur-xs transition-colors shadow-lg cursor-pointer"
           >
-            {isMusicPlaying ? '🎵 BGM: ON' : '🔇 BGM: OFF'}
+            {isMusicPlaying ? '🎵' : '🔇'}
           </button>
 
           {/* Emotes Trigger */}
           <button
             onClick={() => setShowEmotesMenu((e) => !e)}
-            className="bg-slate-900/80 hover:bg-slate-800 border border-white/10 text-amber-300 px-3.5 py-2 rounded-xl text-xs font-semibold backdrop-blur-xs transition-colors shadow-lg cursor-pointer"
+            className="bg-slate-900/80 hover:bg-slate-800 border border-white/10 text-amber-300 px-3 py-2 rounded-xl text-xs font-semibold backdrop-blur-xs transition-colors shadow-lg cursor-pointer flex items-center gap-1"
           >
-            🕺 Dances (1-7)
+            <span>🕺</span> <span className="hidden sm:inline">Dances</span>
           </button>
 
           <button
             onClick={() => setIsPaused(true)}
-            className="bg-slate-900/80 hover:bg-slate-800 border border-white/10 text-slate-200 px-3.5 py-2 rounded-xl text-xs font-semibold backdrop-blur-xs transition-colors shadow-lg cursor-pointer"
+            className="bg-slate-900/80 hover:bg-slate-800 border border-white/10 text-slate-200 px-3 py-2 rounded-xl text-xs font-semibold backdrop-blur-xs transition-colors shadow-lg cursor-pointer"
           >
-            Menu (Esc)
+            Menu
           </button>
         </div>
       </div>
@@ -1415,96 +1581,276 @@ export const GameViewport: React.FC<GameViewportProps> = ({
         </div>
       )}
 
-      {/* Bottom Gear Quick-Bar */}
-      <div className="absolute bottom-14 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-slate-900/85 border border-white/10 p-1.5 rounded-2xl backdrop-blur-xs z-20 shadow-xl max-w-[95vw] overflow-x-auto">
-        <span className="text-[10px] font-bold text-slate-400 px-2 tracking-wider shrink-0">GEAR</span>
-        {[
-          { id: 'banana_peel', label: '🍌 Banana Peel' },
-          { id: 'rubber_chicken', label: '🐔 Rubber Chicken' },
-          { id: 'sword', label: '⚔️ Sword' },
-          { id: 'slap_hand', label: '✋ Slap Hand' },
-          { id: 'paintball_gun', label: '🔫 Paintball' },
-          { id: 'speed_coil', label: '⚡ Speed Coil' },
-          { id: 'gravity_coil', label: '🔮 Gravity Coil' },
-          { id: 'none', label: '✕ Bare Hands' },
-        ].map((item) => (
-          <button
-            key={item.id}
-            onClick={() => {
-              sound.playClick();
-              const it = item.id as EquippedItemType;
-              setEquippedItem(it);
-              currentItemRef.current = it;
-              if (playerRigRef.current) {
-                playerRigRef.current.setEquippedItem(it);
-              }
-            }}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
-              equippedItem === item.id
-                ? 'bg-sky-600 text-white shadow-md'
-                : 'text-slate-300 hover:text-white hover:bg-slate-800'
-            }`}
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
+      {/* Mobile Collapsible Gear Bar vs Desktop Quick-Bar */}
+      {userSettings.showTouchControls ? (
+        <>
+          {/* Mobile Floating Gear Trigger */}
+          <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-30 pointer-events-auto">
+            <button
+              onClick={() => {
+                try {
+                  navigator?.vibrate?.(12);
+                } catch {
+                  // ignore
+                }
+                setShowMobileGear((g) => !g);
+              }}
+              className="bg-slate-900/90 hover:bg-slate-800 border border-white/20 text-white px-4 py-2 rounded-full text-xs font-bold backdrop-blur-md shadow-2xl flex items-center gap-1.5 active:scale-95 transition-transform"
+            >
+              <span>🎒</span>
+              <span>
+                {equippedItem === 'none'
+                  ? 'Gear: Bare Hands'
+                  : `Gear: ${equippedItem.replace('_', ' ').toUpperCase()}`}
+              </span>
+              <span className="text-[10px] text-sky-400 font-mono">
+                {showMobileGear ? '▼' : '▲'}
+              </span>
+            </button>
+          </div>
 
-      {/* Minimal Bottom Controls Line */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-slate-900/75 border border-white/10 px-5 py-2 rounded-full text-xs text-slate-300 backdrop-blur-xs pointer-events-none z-20 flex items-center gap-4">
-        <span><kbd className="bg-slate-800 px-1.5 py-0.5 rounded text-white border border-white/10">WASD</kbd> Move</span>
-        <span>·</span>
-        <span><kbd className="bg-slate-800 px-1.5 py-0.5 rounded text-white border border-white/10">Space</kbd> Jump</span>
-        <span>·</span>
-        <span><kbd className="bg-slate-800 px-1.5 py-0.5 rounded text-white border border-white/10">R</kbd> Ragdoll</span>
-        <span>·</span>
-        <span><kbd className="bg-slate-800 px-1.5 py-0.5 rounded text-white border border-white/10">Right Drag</kbd> Orbit</span>
-        <span>·</span>
-        <span><kbd className="bg-slate-800 px-1.5 py-0.5 rounded text-white border border-white/10">Q / Click</kbd> Action</span>
-        <span>·</span>
-        <span><kbd className="bg-slate-800 px-1.5 py-0.5 rounded text-white border border-white/10">1-7</kbd> Dances</span>
-      </div>
+          {/* Mobile Gear Drawer Popup */}
+          {showMobileGear && (
+            <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-40 bg-slate-900/95 border border-white/20 p-3 rounded-2xl shadow-2xl backdrop-blur-md flex flex-wrap gap-2 max-w-[92vw] justify-center animate-in fade-in zoom-in-95 pointer-events-auto">
+              <div className="w-full text-center text-[10px] font-bold text-slate-400 tracking-wider">
+                SELECT EQUIPPED ITEM
+              </div>
+              {[
+                { id: 'banana_peel', label: '🍌 Banana Peel' },
+                { id: 'rubber_chicken', label: '🐔 Rubber Chicken' },
+                { id: 'sword', label: '⚔️ Sword' },
+                { id: 'slap_hand', label: '✋ Slap Hand' },
+                { id: 'paintball_gun', label: '🔫 Paintball' },
+                { id: 'speed_coil', label: '⚡ Speed Coil' },
+                { id: 'gravity_coil', label: '🔮 Gravity Coil' },
+                { id: 'none', label: '✕ Bare Hands' },
+              ].map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    try {
+                      navigator?.vibrate?.(15);
+                    } catch {
+                      // ignore
+                    }
+                    sound.playClick();
+                    const it = item.id as EquippedItemType;
+                    setEquippedItem(it);
+                    currentItemRef.current = it;
+                    if (playerRigRef.current) {
+                      playerRigRef.current.setEquippedItem(it);
+                    }
+                    setShowMobileGear(false);
+                  }}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap active:scale-95 ${
+                    equippedItem === item.id
+                      ? 'bg-sky-500 text-white shadow-lg'
+                      : 'bg-slate-800/80 text-slate-200 hover:bg-slate-700'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          {/* Desktop Gear Quick-Bar */}
+          <div className="absolute bottom-14 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-slate-900/85 border border-white/10 p-1.5 rounded-2xl backdrop-blur-xs z-20 shadow-xl max-w-[95vw] overflow-x-auto">
+            <span className="text-[10px] font-bold text-slate-400 px-2 tracking-wider shrink-0">GEAR</span>
+            {[
+              { id: 'banana_peel', label: '🍌 Banana Peel' },
+              { id: 'rubber_chicken', label: '🐔 Rubber Chicken' },
+              { id: 'sword', label: '⚔️ Sword' },
+              { id: 'slap_hand', label: '✋ Slap Hand' },
+              { id: 'paintball_gun', label: '🔫 Paintball' },
+              { id: 'speed_coil', label: '⚡ Speed Coil' },
+              { id: 'gravity_coil', label: '🔮 Gravity Coil' },
+              { id: 'none', label: '✕ Bare Hands' },
+            ].map((item) => (
+              <button
+                key={item.id}
+                onClick={() => {
+                  sound.playClick();
+                  const it = item.id as EquippedItemType;
+                  setEquippedItem(it);
+                  currentItemRef.current = it;
+                  if (playerRigRef.current) {
+                    playerRigRef.current.setEquippedItem(it);
+                  }
+                }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+                  equippedItem === item.id
+                    ? 'bg-sky-600 text-white shadow-md'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
 
-      {/* Touch Joystick & Actions */}
+          {/* Desktop Controls Line */}
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-slate-900/75 border border-white/10 px-5 py-2 rounded-full text-xs text-slate-300 backdrop-blur-xs pointer-events-none z-20 flex items-center gap-4">
+            <span><kbd className="bg-slate-800 px-1.5 py-0.5 rounded text-white border border-white/10">WASD</kbd> Move</span>
+            <span>·</span>
+            <span><kbd className="bg-slate-800 px-1.5 py-0.5 rounded text-white border border-white/10">Space</kbd> Jump</span>
+            <span>·</span>
+            <span><kbd className="bg-slate-800 px-1.5 py-0.5 rounded text-white border border-white/10">R</kbd> Ragdoll</span>
+            <span>·</span>
+            <span><kbd className="bg-slate-800 px-1.5 py-0.5 rounded text-white border border-white/10">Right Drag</kbd> Orbit</span>
+            <span>·</span>
+            <span><kbd className="bg-slate-800 px-1.5 py-0.5 rounded text-white border border-white/10">Q / Click</kbd> Action</span>
+            <span>·</span>
+            <span><kbd className="bg-slate-800 px-1.5 py-0.5 rounded text-white border border-white/10">1-7</kbd> Dances</span>
+          </div>
+        </>
+      )}
+
+      {/* Touch Joystick & Actions Cluster */}
       {userSettings.showTouchControls && (
-        <div className="absolute inset-x-6 bottom-6 flex justify-between pointer-events-none z-20">
+        <div className="absolute inset-x-4 sm:inset-x-8 bottom-6 flex justify-between items-end pointer-events-none z-25">
+          {/* Left: Virtual Analog Joystick */}
           <div
-            className="w-32 h-32 rounded-full bg-slate-900/60 border border-white/20 pointer-events-auto flex items-center justify-center relative touch-none"
+            className="w-32 h-32 sm:w-36 sm:h-36 rounded-full bg-slate-900/70 border-2 border-white/20 pointer-events-auto flex items-center justify-center relative touch-none shadow-2xl backdrop-blur-xs"
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
+            onTouchCancel={handleTouchEnd}
           >
+            {/* Subtle compass guide dots */}
+            <div className="absolute top-2 w-1.5 h-1.5 rounded-full bg-white/20" />
+            <div className="absolute bottom-2 w-1.5 h-1.5 rounded-full bg-white/20" />
+            <div className="absolute left-2 w-1.5 h-1.5 rounded-full bg-white/20" />
+            <div className="absolute right-2 w-1.5 h-1.5 rounded-full bg-white/20" />
+
+            {/* Analog Thumb Knob */}
             <div
-              className="w-12 h-12 rounded-full bg-sky-500/80 shadow-lg pointer-events-none transform"
+              className={`w-14 h-14 rounded-full border-2 transition-shadow shadow-xl pointer-events-none ${
+                joystickKnob.active
+                  ? 'bg-gradient-to-tr from-sky-500 to-cyan-300 border-white shadow-sky-500/50 scale-105'
+                  : 'bg-slate-700/80 border-white/30'
+              }`}
               style={{
-                transform: `translate(${touchJoystickRef.current.dx * 30}px, ${touchJoystickRef.current.dy * 30}px)`,
+                transform: `translate(${joystickKnob.x}px, ${joystickKnob.y}px)`,
+                transition: joystickKnob.active ? 'none' : 'transform 0.15s ease-out',
               }}
             />
           </div>
 
-          <div className="flex gap-4 pointer-events-auto items-end">
-            <button
-              onTouchStart={() => {
-                keysPressed.current['KeyE'] = true;
-              }}
-              onTouchEnd={() => {
-                keysPressed.current['KeyE'] = false;
-              }}
-              className="w-16 h-16 rounded-full bg-amber-500/80 hover:bg-amber-400 text-slate-950 font-black text-sm flex items-center justify-center border border-white/20 shadow-xl active:scale-95 transition-transform"
-            >
-              Action
-            </button>
-            <button
-              onTouchStart={() => {
-                keysPressed.current['Space'] = true;
-              }}
-              onTouchEnd={() => {
-                keysPressed.current['Space'] = false;
-              }}
-              className="w-20 h-20 rounded-full bg-emerald-500/80 hover:bg-emerald-400 text-slate-950 font-black text-base flex items-center justify-center border border-white/20 shadow-xl active:scale-95 transition-transform"
-            >
-              JUMP
-            </button>
+          {/* Right: Ergonomic Action Button Cluster */}
+          <div className="flex flex-col items-end gap-3 pointer-events-auto">
+            {/* Upper quick toggles row */}
+            <div className="flex items-center gap-2 mb-1">
+              {/* Perspective POV */}
+              <button
+                onTouchStart={(e) => {
+                  e.stopPropagation();
+                  toggleCameraPerspective();
+                }}
+                className="w-11 h-11 rounded-full bg-slate-900/80 hover:bg-slate-800 text-cyan-300 font-bold border border-white/20 shadow-lg flex items-center justify-center text-xs active:scale-90 transition-transform"
+                title="Camera View"
+              >
+                {isFirstPerson ? '👁️' : '🎥'}
+              </button>
+
+              {/* Emotes Dance */}
+              <button
+                onTouchStart={(e) => {
+                  e.stopPropagation();
+                  try {
+                    navigator?.vibrate?.(12);
+                  } catch {
+                    // ignore
+                  }
+                  setShowEmotesMenu((m) => !m);
+                }}
+                className="w-11 h-11 rounded-full bg-slate-900/80 hover:bg-slate-800 text-amber-300 font-bold border border-white/20 shadow-lg flex items-center justify-center text-xs active:scale-90 transition-transform"
+                title="Dance"
+              >
+                🕺
+              </button>
+
+              {/* Flop / Stand Ragdoll */}
+              <button
+                onTouchStart={(e) => {
+                  e.stopPropagation();
+                  toggleRagdoll();
+                }}
+                className={`px-3 py-1.5 rounded-full font-bold text-xs shadow-lg border flex items-center gap-1 active:scale-95 transition-transform ${
+                  isRagdolling
+                    ? 'bg-pink-600 border-pink-300 text-white'
+                    : 'bg-slate-900/80 border-white/20 text-pink-300'
+                }`}
+              >
+                <span>🤸</span>
+                <span>{isRagdolling ? 'Stand' : 'Flop'}</span>
+              </button>
+            </div>
+
+            {/* Lower Main Action Buttons */}
+            <div className="flex items-end gap-3">
+              {/* Interact Button (KeyE / station / door / clue) */}
+              <button
+                onTouchStart={(e) => {
+                  e.stopPropagation();
+                  try {
+                    navigator?.vibrate?.(15);
+                  } catch {
+                    // ignore
+                  }
+                  keysPressed.current['KeyE'] = true;
+                  triggerInteractRef.current();
+                }}
+                onTouchEnd={(e) => {
+                  e.stopPropagation();
+                  keysPressed.current['KeyE'] = false;
+                }}
+                className="w-14 h-14 rounded-full bg-sky-600 hover:bg-sky-500 active:bg-sky-400 text-white font-bold text-xs flex flex-col items-center justify-center border-2 border-white/30 shadow-xl active:scale-95 transition-transform"
+              >
+                <span>⚡</span>
+                <span className="text-[10px] font-black tracking-tight">USE</span>
+              </button>
+
+              {/* Action / Attack Button (KeyQ / sword / paintball / chicken) */}
+              <button
+                onTouchStart={(e) => {
+                  e.stopPropagation();
+                  try {
+                    navigator?.vibrate?.(25);
+                  } catch {
+                    // ignore
+                  }
+                  triggerActionRef.current();
+                }}
+                className="w-16 h-16 rounded-full bg-amber-500 hover:bg-amber-400 active:bg-amber-300 text-slate-950 font-black text-xs flex flex-col items-center justify-center border-2 border-white/40 shadow-2xl active:scale-95 transition-transform"
+              >
+                <span>⚔️</span>
+                <span className="text-[11px] font-black tracking-tight">ACTION</span>
+              </button>
+
+              {/* JUMP Button (Space) */}
+              <button
+                onTouchStart={(e) => {
+                  e.stopPropagation();
+                  try {
+                    navigator?.vibrate?.(18);
+                  } catch {
+                    // ignore
+                  }
+                  keysPressed.current['Space'] = true;
+                }}
+                onTouchEnd={(e) => {
+                  e.stopPropagation();
+                  keysPressed.current['Space'] = false;
+                }}
+                className="w-20 h-20 rounded-full bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-300 text-slate-950 font-black text-sm flex flex-col items-center justify-center border-2 border-white/50 shadow-2xl active:scale-95 transition-transform shadow-emerald-500/30"
+              >
+                <span>⬆️</span>
+                <span className="text-xs font-black tracking-wider">JUMP</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
