@@ -526,6 +526,9 @@ export const GameViewport: React.FC<GameViewportProps> = ({
 
           if (bot.health <= 0) {
             sound.playCoin();
+            sound.playOof();
+            bot.rig.root.visible = false;
+            confetti({ particleCount: 40, spread: 70, origin: { y: 0.6 } });
             if (worldData.gameMode === 'sword') {
               setSwordKills((k) => {
                 const newKills = k + 1;
@@ -541,12 +544,14 @@ export const GameViewport: React.FC<GameViewportProps> = ({
               window.setTimeout(() => {
                 bot.health = 100;
                 bot.position.set((Math.random() - 0.5) * 40, 3, (Math.random() - 0.5) * 40);
+                bot.rig.root.position.copy(bot.position);
+                bot.rig.root.visible = true;
               }, 5000);
             } else if (worldData.gameMode === 'murder') {
-              setGameMessage('VICTORY! You defeated the Impostor!');
-              confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
+              setGameMessage('VICTORY! You defeated the Impostor! 🏆');
+              confetti({ particleCount: 100, spread: 80, origin: { y: 0.6 } });
               setCoins((c) => {
-                const nc = c + 120;
+                const nc = c + 150;
                 StorageManager.updatePlayerStats({ coins: nc, mansionEscapes: (StorageManager.getPlayerStats().mansionEscapes || 0) + 1 });
                 return nc;
               });
@@ -564,33 +569,35 @@ export const GameViewport: React.FC<GameViewportProps> = ({
         const distOven = playerPos.distanceTo(new THREE.Vector3(2, 2.5, -12));
         const distRegister = playerPos.distanceTo(new THREE.Vector3(0, 2.2, 2));
 
-        if (distDough < 4.5) {
+        if (distDough < 5.5) {
           setHeldPizzaState('dough');
           sound.playBuildPlace();
-          setGameMessage('Picked up fresh dough! Walk to Topping Bar.');
-        } else if (distTopping < 4.5) {
+          setGameMessage('Picked up fresh dough! Walk to Topping Bar 🧀');
+        } else if (distTopping < 5.5) {
           if (heldPizzaState === 'dough') {
             setHeldPizzaState('prepared');
             sound.playBuildPlace();
-            setGameMessage('Added Sauce, Mozzarella & Pepperoni! Place into Conveyor Oven.');
+            setGameMessage('Added Sauce, Mozzarella & Pepperoni! Place into Conveyor Oven 🍕');
           } else {
-            setGameMessage('Grab dough from the table first!');
+            setGameMessage('Grab dough from the prep table first!');
           }
-        } else if (distOven < 4.5) {
+        } else if (distOven < 6.0) {
           if (heldPizzaState === 'prepared') {
             setHeldPizzaState('none');
             sound.playBuildPlace();
-            setGameMessage('Baking in conveyor oven... 4s!');
+            setGameMessage('Baking in conveyor oven... 4s! 🔥');
             setOvenTimer(4);
+          } else if (heldPizzaState === 'baked') {
+            setGameMessage('Pizza is baked and boxed! Walk to the Front Desk to deliver! 📦');
           } else {
             setGameMessage('Prepare pizza toppings first!');
           }
-        } else if (distRegister < 5.0) {
+        } else if (distRegister < 6.0) {
           if (heldPizzaState === 'baked') {
             setHeldPizzaState('none');
             sound.playCoin();
             sound.playCheckpoint();
-            confetti({ particleCount: 30, spread: 60, origin: { y: 0.7 } });
+            confetti({ particleCount: 35, spread: 70, origin: { y: 0.7 } });
             setCoins((c) => {
               const nc = c + 40;
               StorageManager.updatePlayerStats({
@@ -599,7 +606,7 @@ export const GameViewport: React.FC<GameViewportProps> = ({
               });
               return nc;
             });
-            setGameMessage('Order delivered! +40 BloxCoins!');
+            setGameMessage('Order delivered! +40 BloxCoins! 🪙🎉');
           } else {
             setGameMessage('Bake a pizza to complete customer order!');
           }
@@ -815,19 +822,28 @@ export const GameViewport: React.FC<GameViewportProps> = ({
         playerRig.root.rotation.y = THREE.MathUtils.damp(playerRig.root.rotation.y, targetRotation, 16, delta);
       }
 
+      // Coils active stats
+      const activeItem = currentItemRef.current;
+      const isSpeedCoil = activeItem === 'speed_coil';
+      const isGravityCoil = activeItem === 'gravity_coil';
+
+      speedMultiplier = isSpeedCoil ? 2.15 : 1.0;
+      gravityMultiplier = isGravityCoil ? 1.55 : 1.0;
+
       const baseSpeed = (worldData.gameMode === 'speed_run' ? 26 : 16) * speedMultiplier;
       playerVelocity.x = THREE.MathUtils.damp(playerVelocity.x, moveVec.x * baseSpeed, isGrounded ? 18 : 6, delta);
       playerVelocity.z = THREE.MathUtils.damp(playerVelocity.z, moveVec.z * baseSpeed, isGrounded ? 18 : 6, delta);
 
-      // Jump
+      // Jump (with Gravity Coil springiness)
       if ((keys['Space'] || keys['KeyK']) && isGrounded) {
-        playerVelocity.y = 19 * gravityMultiplier;
+        playerVelocity.y = (isGravityCoil ? 26 : 19) * gravityMultiplier;
         sound.playJump();
         isGrounded = false;
       }
 
-      // Gravity
-      playerVelocity.y -= 48 * delta;
+      // Gravity (floaty low gravity when Gravity Coil is held)
+      const currentGravity = isGravityCoil ? 22 : 48;
+      playerVelocity.y -= currentGravity * delta;
 
       // Integrate
       playerPos.addScaledVector(playerVelocity, delta);
@@ -848,6 +864,13 @@ export const GameViewport: React.FC<GameViewportProps> = ({
         playerVelocity.y = col.bounceForce;
         sound.playBounce();
         isGrounded = false;
+        if (col.conveyorSpeed) {
+          playerVelocity.x += col.conveyorSpeed[0];
+          playerVelocity.z += col.conveyorSpeed[1];
+        }
+      } else if (col.conveyorSpeed) {
+        playerVelocity.x += col.conveyorSpeed[0] * delta * 5;
+        playerVelocity.z += col.conveyorSpeed[1] * delta * 5;
       } else if (col.standingOnCheckpoint !== undefined) {
         if (worldData.gameMode === 'obby') {
           if (col.standingOnCheckpoint > obbyStage) {
@@ -1168,9 +1191,33 @@ export const GameViewport: React.FC<GameViewportProps> = ({
         // Check bot hit
         bots.forEach((b) => {
           if (b.health > 0 && pb.mesh.position.distanceTo(b.position) < (b.isGiant ? 4 : 2)) {
-            b.health -= 25;
+            b.health -= 35;
             sound.playHit();
             pb.life = 0;
+            if (b.health <= 0) {
+              sound.playOof();
+              sound.playCoin();
+              b.rig.root.visible = false;
+              if (worldData.gameMode === 'sword') {
+                setSwordKills((k) => {
+                  const newKills = k + 1;
+                  StorageManager.updatePlayerStats({ swordKills: newKills });
+                  return newKills;
+                });
+                setKillFeed((kf) => [`Paintballed ${b.name}! 🎯`, ...kf.slice(0, 3)]);
+                setCoins((c) => {
+                  const nc = c + 50;
+                  StorageManager.updatePlayerStats({ coins: nc });
+                  return nc;
+                });
+                window.setTimeout(() => {
+                  b.health = 100;
+                  b.position.set((Math.random() - 0.5) * 40, 3, (Math.random() - 0.5) * 40);
+                  b.rig.root.position.copy(b.position);
+                  b.rig.root.visible = true;
+                }, 5000);
+              }
+            }
           }
         });
 
@@ -1581,10 +1628,69 @@ export const GameViewport: React.FC<GameViewportProps> = ({
         </div>
       )}
 
-      {/* Mobile Collapsible Gear Bar vs Desktop Quick-Bar */}
-      {userSettings.showTouchControls ? (
-        <>
-          {/* Mobile Floating Gear Trigger */}
+      {/* Desktop Gear Quick-Bar (Always visible on desktop screens) */}
+      <div
+        className={`absolute bottom-14 left-1/2 -translate-x-1/2 items-center gap-1.5 bg-slate-900/85 border border-white/10 p-1.5 rounded-2xl backdrop-blur-xs z-20 shadow-xl max-w-[95vw] overflow-x-auto ${
+          userSettings.showTouchControls ? 'hidden md:flex' : 'flex'
+        }`}
+      >
+        <span className="text-[10px] font-bold text-slate-400 px-2 tracking-wider shrink-0">GEAR</span>
+        {[
+          { id: 'banana_peel', label: '🍌 Banana Peel' },
+          { id: 'rubber_chicken', label: '🐔 Rubber Chicken' },
+          { id: 'sword', label: '⚔️ Sword' },
+          { id: 'slap_hand', label: '✋ Slap Hand' },
+          { id: 'paintball_gun', label: '🔫 Paintball' },
+          { id: 'speed_coil', label: '⚡ Speed Coil' },
+          { id: 'gravity_coil', label: '🔮 Gravity Coil' },
+          { id: 'none', label: '✕ Bare Hands' },
+        ].map((item) => (
+          <button
+            key={item.id}
+            onClick={() => {
+              sound.playClick();
+              const it = item.id as EquippedItemType;
+              setEquippedItem(it);
+              currentItemRef.current = it;
+              if (playerRigRef.current) {
+                playerRigRef.current.setEquippedItem(it);
+              }
+            }}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+              equippedItem === item.id
+                ? 'bg-sky-600 text-white shadow-md'
+                : 'text-slate-300 hover:text-white hover:bg-slate-800'
+            }`}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Desktop Controls Legend (Always visible on desktop screens) */}
+      <div
+        className={`absolute bottom-4 left-1/2 -translate-x-1/2 bg-slate-900/75 border border-white/10 px-5 py-2 rounded-full text-xs text-slate-300 backdrop-blur-xs pointer-events-none z-20 items-center gap-4 ${
+          userSettings.showTouchControls ? 'hidden md:flex' : 'flex'
+        }`}
+      >
+        <span><kbd className="bg-slate-800 px-1.5 py-0.5 rounded text-white border border-white/10">WASD</kbd> Move</span>
+        <span>·</span>
+        <span><kbd className="bg-slate-800 px-1.5 py-0.5 rounded text-white border border-white/10">Space</kbd> Jump</span>
+        <span>·</span>
+        <span><kbd className="bg-slate-800 px-1.5 py-0.5 rounded text-white border border-white/10">R</kbd> Ragdoll</span>
+        <span>·</span>
+        <span><kbd className="bg-slate-800 px-1.5 py-0.5 rounded text-white border border-white/10">Right Drag</kbd> Orbit</span>
+        <span>·</span>
+        <span><kbd className="bg-slate-800 px-1.5 py-0.5 rounded text-white border border-white/10">Q / Click</kbd> Action</span>
+        <span>·</span>
+        <span><kbd className="bg-slate-800 px-1.5 py-0.5 rounded text-white border border-white/10">E</kbd> Interact</span>
+        <span>·</span>
+        <span><kbd className="bg-slate-800 px-1.5 py-0.5 rounded text-white border border-white/10">1-7</kbd> Dances</span>
+      </div>
+
+      {/* Mobile Floating Gear Trigger & Popup (Shown on small screens) */}
+      {userSettings.showTouchControls && (
+        <div className="md:hidden">
           <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-30 pointer-events-auto">
             <button
               onClick={() => {
@@ -1609,7 +1715,6 @@ export const GameViewport: React.FC<GameViewportProps> = ({
             </button>
           </div>
 
-          {/* Mobile Gear Drawer Popup */}
           {showMobileGear && (
             <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-40 bg-slate-900/95 border border-white/20 p-3 rounded-2xl shadow-2xl backdrop-blur-md flex flex-wrap gap-2 max-w-[92vw] justify-center animate-in fade-in zoom-in-95 pointer-events-auto">
               <div className="w-full text-center text-[10px] font-bold text-slate-400 tracking-wider">
@@ -1653,59 +1758,7 @@ export const GameViewport: React.FC<GameViewportProps> = ({
               ))}
             </div>
           )}
-        </>
-      ) : (
-        <>
-          {/* Desktop Gear Quick-Bar */}
-          <div className="absolute bottom-14 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-slate-900/85 border border-white/10 p-1.5 rounded-2xl backdrop-blur-xs z-20 shadow-xl max-w-[95vw] overflow-x-auto">
-            <span className="text-[10px] font-bold text-slate-400 px-2 tracking-wider shrink-0">GEAR</span>
-            {[
-              { id: 'banana_peel', label: '🍌 Banana Peel' },
-              { id: 'rubber_chicken', label: '🐔 Rubber Chicken' },
-              { id: 'sword', label: '⚔️ Sword' },
-              { id: 'slap_hand', label: '✋ Slap Hand' },
-              { id: 'paintball_gun', label: '🔫 Paintball' },
-              { id: 'speed_coil', label: '⚡ Speed Coil' },
-              { id: 'gravity_coil', label: '🔮 Gravity Coil' },
-              { id: 'none', label: '✕ Bare Hands' },
-            ].map((item) => (
-              <button
-                key={item.id}
-                onClick={() => {
-                  sound.playClick();
-                  const it = item.id as EquippedItemType;
-                  setEquippedItem(it);
-                  currentItemRef.current = it;
-                  if (playerRigRef.current) {
-                    playerRigRef.current.setEquippedItem(it);
-                  }
-                }}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
-                  equippedItem === item.id
-                    ? 'bg-sky-600 text-white shadow-md'
-                    : 'text-slate-300 hover:text-white hover:bg-slate-800'
-                }`}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Desktop Controls Line */}
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-slate-900/75 border border-white/10 px-5 py-2 rounded-full text-xs text-slate-300 backdrop-blur-xs pointer-events-none z-20 flex items-center gap-4">
-            <span><kbd className="bg-slate-800 px-1.5 py-0.5 rounded text-white border border-white/10">WASD</kbd> Move</span>
-            <span>·</span>
-            <span><kbd className="bg-slate-800 px-1.5 py-0.5 rounded text-white border border-white/10">Space</kbd> Jump</span>
-            <span>·</span>
-            <span><kbd className="bg-slate-800 px-1.5 py-0.5 rounded text-white border border-white/10">R</kbd> Ragdoll</span>
-            <span>·</span>
-            <span><kbd className="bg-slate-800 px-1.5 py-0.5 rounded text-white border border-white/10">Right Drag</kbd> Orbit</span>
-            <span>·</span>
-            <span><kbd className="bg-slate-800 px-1.5 py-0.5 rounded text-white border border-white/10">Q / Click</kbd> Action</span>
-            <span>·</span>
-            <span><kbd className="bg-slate-800 px-1.5 py-0.5 rounded text-white border border-white/10">1-7</kbd> Dances</span>
-          </div>
-        </>
+        </div>
       )}
 
       {/* Touch Joystick & Actions Cluster */}
@@ -1873,6 +1926,29 @@ export const GameViewport: React.FC<GameViewportProps> = ({
                 <div className="text-slate-500">Health</div>
                 <div className="text-base font-bold text-emerald-400">{health} / 100</div>
               </div>
+            </div>
+
+            {/* Quick Touch Controls Toggle */}
+            <div className="flex items-center justify-between bg-slate-950/40 p-3 rounded-xl border border-white/5 text-xs text-slate-300">
+              <div className="text-left">
+                <div className="font-semibold text-white">On-Screen Touch Buttons</div>
+                <div className="text-[11px] text-slate-400">Virtual analog stick & jump buttons</div>
+              </div>
+              <button
+                onClick={() => {
+                  sound.playClick();
+                  userSettings.showTouchControls = !userSettings.showTouchControls;
+                  StorageManager.saveUserSettings(userSettings);
+                  setIsPaused(false);
+                }}
+                className={`px-3 py-1.5 rounded-lg font-bold text-xs cursor-pointer transition-colors ${
+                  userSettings.showTouchControls
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-slate-800 text-slate-400 hover:text-white'
+                }`}
+              >
+                {userSettings.showTouchControls ? 'ENABLED' : 'DISABLED'}
+              </button>
             </div>
 
             <div className="flex flex-col gap-3">

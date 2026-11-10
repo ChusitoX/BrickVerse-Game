@@ -243,6 +243,7 @@ export class WorldRenderer {
     standingOnBounce: boolean;
     bounceForce?: number;
     standingOnCheckpoint?: number;
+    conveyorSpeed?: [number, number];
   } {
     const correctedPos = playerPos.clone();
     let isGrounded = false;
@@ -251,6 +252,7 @@ export class WorldRenderer {
     let standingOnBounce = false;
     let bounceForce: number | undefined;
     let standingOnCheckpoint: number | undefined;
+    let conveyorSpeed: [number, number] | undefined;
 
     // Player AABB
     const pMinX = correctedPos.x - playerRadius;
@@ -281,6 +283,10 @@ export class WorldRenderer {
             bounceForce = rp.partData.metadata?.bounceForce || 28;
           } else if (rp.partData.type === 'checkpoint') {
             standingOnCheckpoint = rp.partData.metadata?.checkpointIndex ?? 1;
+          }
+
+          if (rp.partData.metadata?.conveyorSpeed) {
+            conveyorSpeed = rp.partData.metadata.conveyorSpeed;
           }
         }
       }
@@ -325,6 +331,7 @@ export class WorldRenderer {
       standingOnBounce,
       bounceForce,
       standingOnCheckpoint,
+      conveyorSpeed,
     };
   }
 

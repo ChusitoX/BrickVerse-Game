@@ -73,7 +73,9 @@ export const obbyWorld: BrickWorldData = {
 
     createPart('sp3', 'block', 'Stage 3 Island', [0, 5.2, 78], [12, 1, 10], '#1e293b'),
     createPart('st3_chk', 'checkpoint', 'Stage 3 Checkpoint', [0, 5.75, 75], [4, 0.1, 4], '#10b981', 'neon', true, true, { checkpointIndex: 3 }),
-    createPart('s3_bounce', 'bounce', 'Super Trampoline', [0, 5.8, 81], [5, 0.3, 5], '#eab308', 'neon', true, true, { bounceForce: 36 }),
+    createPart('s3_bounce', 'bounce', 'Super Trampoline', [0, 5.8, 81], [6, 0.4, 6], '#eab308', 'neon', true, true, { bounceForce: 58 }),
+    createPart('s3_cloud1', 'block', 'Rainbow Cloud 1', [0, 16, 81], [6, 0.6, 6], '#f472b6', 'glass'),
+    createPart('s3_cloud2', 'block', 'Rainbow Cloud 2', [0, 26, 81], [6, 0.6, 6], '#38bdf8', 'glass'),
 
     createPart('sp4', 'block', 'Cloud Haven', [0, 36, 81], [16, 1, 16], '#f8fafc', 'plastic'),
     createPart('st4_chk', 'checkpoint', 'Stage 4 Checkpoint', [0, 36.55, 76], [4, 0.1, 4], '#10b981', 'neon', true, true, { checkpointIndex: 4 }),
@@ -280,7 +282,8 @@ export const speedRunWorld: BrickWorldData = {
 
     // High launch ramp
     createPart('sr_ramp1', 'wedge', 'Launch Wedge', [0, 3, 75], [8, 4, 10], '#a855f7', 'neon'),
-    createPart('sr_bounce1', 'bounce', 'Space Launcher', [0, 5.2, 80], [6, 0.3, 6], '#ec4899', 'neon', true, true, { bounceForce: 38 }),
+    createPart('sr_bounce1', 'bounce', 'Space Launcher', [0, 5.2, 80], [6, 0.4, 6], '#ec4899', 'neon', true, true, { bounceForce: 58, conveyorSpeed: [0, 30] }),
+    createPart('sr_boost_ring1', 'block', 'Midway Booster 1', [0, 22, 98], [8, 0.8, 8], '#06b6d4', 'neon', true, true, { bounceForce: 45, conveyorSpeed: [0, 25] }),
 
     // Elevated floating rings in mid-air
     createPart('sr_air1', 'block', 'Air Platform 1', [0, 38, 120], [8, 1, 10], '#06b6d4', 'neon'),
@@ -289,7 +292,7 @@ export const speedRunWorld: BrickWorldData = {
 
     // Neon speed bridge
     createPart('sr_track2', 'block', 'Galaxy Bridge', [0, 42, 215], [8, 1, 70], '#1e1b4b', 'plastic'),
-    createPart('sr_pad3', 'block', 'Hyper Booster', [0, 42.6, 200], [6, 0.1, 12], '#06b6d4', 'neon'),
+    createPart('sr_pad3', 'block', 'Hyper Booster', [0, 42.6, 200], [6, 0.1, 12], '#06b6d4', 'neon', true, true, { conveyorSpeed: [0, 45] }),
 
     // Finish Gateway Portal
     createPart('sr_finish_podium', 'block', 'Cosmic Finish Line', [0, 42.5, 270], [20, 2, 18], '#facc15', 'metal'),
