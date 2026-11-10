@@ -48,6 +48,12 @@ export const DEFAULT_PLAYER_STATS: PlayerStats = {
   hideAndSeekWins: 0,
   ragdollScore: 0,
   lavaEscapes: 0,
+  zombiesKilled: 0,
+  ctfCaptures: 0,
+  coasterRides: 0,
+  propsFound: 0,
+  kartBestTime: 0,
+  laserTagHits: 0,
 };
 
 export class StorageManager {

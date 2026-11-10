@@ -13,6 +13,8 @@ import { WorldRenderer } from './worldRenderer';
 import { CameraController } from './cameraController';
 import { sound } from '../audio/soundEngine';
 import { StorageManager } from '../storage/worldStorage';
+import { DailyMissionsModal } from '../components/DailyMissionsModal';
+import { recordMissionAction } from '../utils/dailyMissions';
 
 interface GameViewportProps {
   worldData: BrickWorldData;
@@ -30,7 +32,7 @@ interface SimulatedBot {
   targetPos: THREE.Vector3;
   health: number;
   maxHealth: number;
-  team: 'red' | 'blue' | 'impostor' | 'seeker';
+  team: 'red' | 'blue' | 'impostor' | 'seeker' | 'zombie' | 'laser';
   name: string;
   attackCooldown: number;
   isGiant?: boolean;
@@ -38,6 +40,12 @@ interface SimulatedBot {
 
 interface PaintballProjectile {
   mesh: THREE.Mesh;
+  velocity: THREE.Vector3;
+  life: number;
+}
+
+interface RocketProjectile {
+  mesh: THREE.Group;
   velocity: THREE.Vector3;
   life: number;
 }
@@ -99,6 +107,39 @@ export const GameViewport: React.FC<GameViewportProps> = ({
   const [ragdollScore, setRagdollScore] = useState(0);
   const [lavaHeight, setLavaHeight] = useState(0);
   const [isLavaEscaped, setIsLavaEscaped] = useState(false);
+
+  // Daily Missions modal state
+  const [isDailyMissionsOpen, setIsDailyMissionsOpen] = useState(false);
+
+  // Mega Expansion: Zombie Defense states
+  const [zombieWave, setZombieWave] = useState(1);
+  const [, setZombiesKilledCount] = useState(0);
+
+  // Mega Expansion: Paintball CTF states
+  const [ctfScore, setCtfScore] = useState({ red: 0, blue: 0 });
+  const [hasFlag, setHasFlag] = useState<'none' | 'red' | 'blue'>('none');
+  const hasFlagRef = useRef<'none' | 'red' | 'blue'>('none');
+
+  // Mega Expansion: Rollercoaster states
+  const [isCoasterRiding, setIsCoasterRiding] = useState(false);
+  const isCoasterRidingRef = useRef(false);
+
+  // Mega Expansion: Prop Hunt states
+  const [propDisguise, setPropDisguise] = useState<'none' | 'crate' | 'barrel' | 'locker'>('none');
+
+  // Mega Expansion: Kart Speedway states
+  const [kartLap, setKartLap] = useState(1);
+  const [kartLapTimer, setKartLapTimer] = useState(0);
+  const [kartBestTime, setKartBestTime] = useState(() => StorageManager.getPlayerStats().kartBestTime || 0);
+  const passedHalfwayRef = useRef(false);
+
+  // Mega Expansion: Laser Tag states
+  const [laserHits, setLaserHits] = useState(0);
+
+  // Mega Expansion: Jetpack & Ghost states
+  const [jetpackFuel, setJetpackFuel] = useState(100);
+  const [, setIsGhostActive] = useState(false);
+  const isGhostRef = useRef(false);
 
   // Mobile touch controls state
   const touchJoystickRef = useRef<{ active: boolean; dx: number; dy: number }>({ active: false, dx: 0, dy: 0 });
@@ -387,9 +428,150 @@ export const GameViewport: React.FC<GameViewportProps> = ({
         attackCooldown: 0,
         isGiant: true,
       });
+    } else if (worldData.gameMode === 'zombie_defense') {
+      // 6 Mutant Zombie bots outside fort perimeter
+      for (let i = 0; i < 6; i++) {
+        const zRig = buildCharacter({
+          ...avatarConfig,
+          headColor: '#16a34a',
+          torsoColor: '#15803d',
+          face: 'evil',
+          hat: 'none',
+          backAccessory: 'none',
+          shirtPattern: 'classic',
+        });
+        scene.add(zRig.root);
+        const ang = (i / 6) * Math.PI * 2;
+        const dist = 28 + (i % 2) * 8;
+        const bPos = new THREE.Vector3(Math.cos(ang) * dist, 1.5, Math.sin(ang) * dist);
+        zRig.root.position.copy(bPos);
+        bots.push({
+          rig: zRig,
+          position: bPos,
+          velocity: new THREE.Vector3(),
+          targetPos: bPos.clone(),
+          health: 80,
+          maxHealth: 80,
+          team: 'zombie',
+          name: `Zombie_${i + 1}`,
+          attackCooldown: 0,
+        });
+      }
+    } else if (worldData.gameMode === 'paintball_ctf') {
+      // 2 Red Defenders & 2 Blue Defenders
+      const ctfBots = [
+        { name: 'Red_Defender', team: 'red' as const, pos: [-24, 2, 8] },
+        { name: 'Red_Striker', team: 'red' as const, pos: [-18, 2, -8] },
+        { name: 'Blue_Defender', team: 'blue' as const, pos: [24, 2, 8] },
+        { name: 'Blue_Striker', team: 'blue' as const, pos: [18, 2, -8] },
+      ];
+      ctfBots.forEach((cb) => {
+        const cRig = buildCharacter({
+          ...avatarConfig,
+          headColor: '#facc15',
+          torsoColor: cb.team === 'red' ? '#dc2626' : '#2563eb',
+          face: 'chill',
+          hat: 'cap',
+          backAccessory: 'none',
+          shirtPattern: 'classic',
+        });
+        cRig.setEquippedItem('paintball_gun');
+        scene.add(cRig.root);
+        const bPos = new THREE.Vector3(...cb.pos);
+        cRig.root.position.copy(bPos);
+        bots.push({
+          rig: cRig,
+          position: bPos,
+          velocity: new THREE.Vector3(),
+          targetPos: bPos.clone(),
+          health: 100,
+          maxHealth: 100,
+          team: cb.team,
+          name: cb.name,
+          attackCooldown: 0,
+        });
+      });
+    } else if (worldData.gameMode === 'laser_tag') {
+      // 4 Cyber Bots in neon labyrinth
+      const colors = ['#06b6d4', '#ec4899', '#facc15', '#10b981'];
+      for (let i = 0; i < 4; i++) {
+        const ltRig = buildCharacter({
+          ...avatarConfig,
+          headColor: '#0f172a',
+          torsoColor: colors[i],
+          face: 'cyborg',
+          hat: 'halo',
+          backAccessory: 'wings',
+          shirtPattern: 'cyber',
+        });
+        ltRig.setEquippedItem('laser_katana');
+        scene.add(ltRig.root);
+        const ang = (i / 4) * Math.PI * 2;
+        const bPos = new THREE.Vector3(Math.cos(ang) * 20, 1.5, Math.sin(ang) * 20);
+        ltRig.root.position.copy(bPos);
+        bots.push({
+          rig: ltRig,
+          position: bPos,
+          velocity: new THREE.Vector3(),
+          targetPos: bPos.clone(),
+          health: 100,
+          maxHealth: 100,
+          team: 'laser',
+          name: `CyberBot_${i + 1}`,
+          attackCooldown: 0,
+        });
+      }
+    } else if (worldData.gameMode === 'prop_hunt') {
+      // 2 Seeker bots searching the warehouse
+      for (let i = 0; i < 2; i++) {
+        const sRig = buildCharacter({
+          ...avatarConfig,
+          headColor: '#1e293b',
+          torsoColor: '#eab308',
+          face: 'stare',
+          hat: 'fedora',
+          backAccessory: 'none',
+          shirtPattern: 'police',
+        });
+        sRig.setEquippedItem('slap_hand');
+        scene.add(sRig.root);
+        const bPos = new THREE.Vector3(i === 0 ? -16 : 16, 1.5, -18);
+        sRig.root.position.copy(bPos);
+        bots.push({
+          rig: sRig,
+          position: bPos,
+          velocity: new THREE.Vector3(),
+          targetPos: bPos.clone(),
+          health: 150,
+          maxHealth: 150,
+          team: 'seeker',
+          name: `Seeker_${i + 1}`,
+          attackCooldown: 0,
+        });
+      }
     }
 
-    // Disaster tornado state
+    // Rollercoaster Train
+    const coasterTrain = new THREE.Group();
+    if (worldData.gameMode === 'rollercoaster') {
+      for (let c = 0; c < 3; c++) {
+        const car = new THREE.Mesh(
+          new THREE.BoxGeometry(3.2, 1.4, 4),
+          new THREE.MeshStandardMaterial({
+            color: c === 0 ? 0xef4444 : 0x0284c7,
+            metalness: 0.7,
+            roughness: 0.2,
+          })
+        );
+        car.position.set(0, 0, c * -4.5);
+        coasterTrain.add(car);
+      }
+      scene.add(coasterTrain);
+    }
+    let coasterT = 0;
+
+    // Rockets array
+    const rockets: RocketProjectile[] = [];
     let disasterRoundTime = 60;
     let tornadoAngle = 0;
     const tornadoPos = new THREE.Vector3(0, 0, 0);
@@ -468,9 +650,75 @@ export const GameViewport: React.FC<GameViewportProps> = ({
         return;
       }
 
+      if (currentItem === 'rocket_launcher') {
+        sound.playRocketBoom();
+        const rGroup = new THREE.Group();
+        rGroup.position.copy(playerPos).add(new THREE.Vector3(0, 1.8, 0));
+        const dir = new THREE.Vector3();
+        camera.getWorldDirection(dir);
+
+        const rBody = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.18, 0.18, 1.2, 8),
+          new THREE.MeshStandardMaterial({ color: 0xef4444, metalness: 0.8 })
+        );
+        rBody.rotation.x = Math.PI / 2;
+        rGroup.add(rBody);
+        const rNose = new THREE.Mesh(
+          new THREE.ConeGeometry(0.2, 0.4, 8),
+          new THREE.MeshStandardMaterial({ color: 0xfacc15 })
+        );
+        rNose.rotation.x = Math.PI / 2;
+        rNose.position.set(0, 0, 0.7);
+        rGroup.add(rNose);
+
+        scene.add(rGroup);
+        rockets.push({
+          mesh: rGroup,
+          velocity: dir.multiplyScalar(42),
+          life: 3.5,
+        });
+        return;
+      }
+
+      if (currentItem === 'grappling_hook') {
+        sound.playSpeedBoost();
+        const dir = new THREE.Vector3();
+        camera.getWorldDirection(dir);
+        playerVelocity.copy(dir.clone().multiplyScalar(42));
+        playerVelocity.y = Math.max(playerVelocity.y + 18, 20);
+        isGrounded = false;
+        setGameMessage('Grapple Reeled! 🪝');
+        window.setTimeout(() => setGameMessage(''), 1500);
+        return;
+      }
+
+      if (currentItem === 'ghost_cloak') {
+        sound.playSecretKey();
+        setIsGhostActive(true);
+        isGhostRef.current = true;
+        setGameMessage('Ghost Cloak Active! 👻 Invisible to bots for 10s!');
+        window.setTimeout(() => {
+          setIsGhostActive(false);
+          isGhostRef.current = false;
+          setGameMessage('Ghost Cloak faded.');
+          window.setTimeout(() => setGameMessage(''), 1500);
+        }, 10000);
+        return;
+      }
+
+      if (currentItem === 'super_pogo') {
+        sound.playPogoBounce();
+        playerVelocity.y = 35;
+        isGrounded = false;
+        return;
+      }
+
       if (currentItem === 'rubber_chicken') {
         sound.playSqueak();
         window.setTimeout(() => sound.playBonk(), 120);
+      } else if (currentItem === 'laser_katana') {
+        sound.playLaserBeam();
+        attackCooldown = 0.22;
       } else if (currentItem === 'paintball_gun') {
         sound.playPaintballShot();
         // Spawn bouncing paintball sphere
@@ -501,7 +749,12 @@ export const GameViewport: React.FC<GameViewportProps> = ({
       }
 
       // Check hit on bots
-      const attackRange = currentItem === 'slap_hand' || currentItem === 'rubber_chicken' ? 7.0 : 5.5;
+      const attackRange =
+        currentItem === 'slap_hand' || currentItem === 'rubber_chicken'
+          ? 7.0
+          : currentItem === 'laser_katana'
+          ? 6.5
+          : 5.5;
       const attackBox = new THREE.Box3().setFromCenterAndSize(
         playerPos.clone().add(new THREE.Vector3(0, 1.5, 0)),
         new THREE.Vector3(attackRange, 4, attackRange)
@@ -510,16 +763,26 @@ export const GameViewport: React.FC<GameViewportProps> = ({
       bots.forEach((bot) => {
         if (bot.health <= 0) return;
         if (attackBox.containsPoint(bot.position)) {
-          const damage = currentItem === 'slap_hand' ? 20 : currentItem === 'rubber_chicken' ? 25 : 35;
+          const damage =
+            currentItem === 'slap_hand'
+              ? 20
+              : currentItem === 'rubber_chicken'
+              ? 25
+              : currentItem === 'laser_katana'
+              ? 55
+              : 35;
           bot.health -= damage;
           if (currentItem === 'rubber_chicken') {
             sound.playBonk();
+          } else if (currentItem === 'laser_katana') {
+            sound.playLaserBeam();
           } else {
             sound.playHit();
           }
 
           // Knockback
-          const knockScalar = currentItem === 'slap_hand' ? 32 : currentItem === 'rubber_chicken' ? 38 : 14;
+          const knockScalar =
+            currentItem === 'slap_hand' ? 32 : currentItem === 'rubber_chicken' ? 38 : 18;
           const knock = bot.position.clone().sub(playerPos).normalize().multiplyScalar(knockScalar);
           knock.y = currentItem === 'rubber_chicken' ? 14 : 8;
           bot.velocity.add(knock);
@@ -529,7 +792,70 @@ export const GameViewport: React.FC<GameViewportProps> = ({
             sound.playOof();
             bot.rig.root.visible = false;
             confetti({ particleCount: 40, spread: 70, origin: { y: 0.6 } });
-            if (worldData.gameMode === 'sword') {
+
+            if (worldData.gameMode === 'zombie_defense') {
+              setCoins((c) => {
+                const nc = c + 25;
+                StorageManager.updatePlayerStats({
+                  coins: nc,
+                  zombiesKilled: (StorageManager.getPlayerStats().zombiesKilled || 0) + 1,
+                });
+                return nc;
+              });
+              setZombiesKilledCount((zc) => {
+                const next = zc + 1;
+                if (next % 6 === 0) {
+                  setZombieWave((w) => {
+                    const nw = w + 1;
+                    sound.playFanfare();
+                    setGameMessage(`WAVE ${nw} INCOMING! 🧟 High alert!`);
+                    return nw;
+                  });
+                }
+                return next;
+              });
+              setKillFeed((kf) => [`Eliminated ${bot.name}! 🧟 +25 Coins`, ...kf.slice(0, 3)]);
+              recordMissionAction('zombies', 1, 'zombie_defense');
+              window.setTimeout(() => {
+                bot.health = 80;
+                const ang = Math.random() * Math.PI * 2;
+                bot.position.set(Math.cos(ang) * 32, 1.5, Math.sin(ang) * 32);
+                bot.rig.root.position.copy(bot.position);
+                bot.rig.root.visible = true;
+              }, 5000);
+            } else if (worldData.gameMode === 'laser_tag') {
+              setCoins((c) => {
+                const nc = c + 35;
+                StorageManager.updatePlayerStats({
+                  coins: nc,
+                  laserTagHits: (StorageManager.getPlayerStats().laserTagHits || 0) + 1,
+                });
+                return nc;
+              });
+              setLaserHits((h) => h + 1);
+              setKillFeed((kf) => [`Tagged ${bot.name}! ⚡ +35 Coins`, ...kf.slice(0, 3)]);
+              recordMissionAction('lasers', 1, 'laser_tag');
+              window.setTimeout(() => {
+                bot.health = 100;
+                bot.position.set((Math.random() - 0.5) * 35, 1.5, (Math.random() - 0.5) * 35);
+                bot.rig.root.position.copy(bot.position);
+                bot.rig.root.visible = true;
+              }, 4000);
+            } else if (worldData.gameMode === 'paintball_ctf') {
+              setCoins((c) => {
+                const nc = c + 30;
+                StorageManager.updatePlayerStats({ coins: nc });
+                return nc;
+              });
+              setKillFeed((kf) => [`Splatted ${bot.name}! 🔫 +30 Coins`, ...kf.slice(0, 3)]);
+              window.setTimeout(() => {
+                bot.health = 100;
+                const spawnX = bot.team === 'red' ? -26 : 26;
+                bot.position.set(spawnX, 2, (Math.random() - 0.5) * 16);
+                bot.rig.root.position.copy(bot.position);
+                bot.rig.root.visible = true;
+              }, 5000);
+            } else if (worldData.gameMode === 'sword') {
               setSwordKills((k) => {
                 const newKills = k + 1;
                 StorageManager.updatePlayerStats({ swordKills: newKills });
@@ -552,7 +878,10 @@ export const GameViewport: React.FC<GameViewportProps> = ({
               confetti({ particleCount: 100, spread: 80, origin: { y: 0.6 } });
               setCoins((c) => {
                 const nc = c + 150;
-                StorageManager.updatePlayerStats({ coins: nc, mansionEscapes: (StorageManager.getPlayerStats().mansionEscapes || 0) + 1 });
+                StorageManager.updatePlayerStats({
+                  coins: nc,
+                  mansionEscapes: (StorageManager.getPlayerStats().mansionEscapes || 0) + 1,
+                });
                 return nc;
               });
             }
@@ -610,6 +939,53 @@ export const GameViewport: React.FC<GameViewportProps> = ({
           } else {
             setGameMessage('Bake a pizza to complete customer order!');
           }
+        }
+      }
+
+      // Rollercoaster Boarding
+      if (worldData.gameMode === 'rollercoaster') {
+        const distToStation = playerPos.distanceTo(new THREE.Vector3(0, 4.3, 20));
+        if (distToStation < 9.0) {
+          setIsCoasterRiding((r) => {
+            const next = !r;
+            isCoasterRidingRef.current = next;
+            if (next) {
+              sound.playFanfare();
+              setGameMessage('Boarded Coaster! Enjoy the sky loops! 🎢 Press E or Interact to Exit');
+              recordMissionAction('coaster', 1, 'rollercoaster');
+            } else {
+              sound.playJump();
+              playerPos.set(0, 4.5, 20);
+              setGameMessage('Exited Coaster.');
+            }
+            return next;
+          });
+        } else {
+          setGameMessage('Walk up to the Coaster Platform to board! 🎢');
+        }
+      }
+
+      // Prop Hunt Disguise stations
+      if (worldData.gameMode === 'prop_hunt') {
+        const distCrate = playerPos.distanceTo(new THREE.Vector3(-6, 1.2, -6));
+        const distBarrel = playerPos.distanceTo(new THREE.Vector3(6, 1.2, -6));
+        const distLocker = playerPos.distanceTo(new THREE.Vector3(0, 2.0, -12));
+
+        if (distCrate < 6.0) {
+          sound.playDisguisePop();
+          setPropDisguise('crate');
+          setGameMessage('Disguised as: Wooden Crate! 📦 Stand still to fool seekers!');
+          recordMissionAction('props', 1, 'prop_hunt');
+        } else if (distBarrel < 6.0) {
+          sound.playDisguisePop();
+          setPropDisguise('barrel');
+          setGameMessage('Disguised as: Bio Barrel! 🛢️ Stand still to fool seekers!');
+          recordMissionAction('props', 1, 'prop_hunt');
+        } else if (distLocker < 6.0) {
+          sound.playDisguisePop();
+          setPropDisguise('locker');
+          setGameMessage('Disguised as: Metal Locker! 🚪 Stand still to fool seekers!');
+          recordMissionAction('props', 1, 'prop_hunt');
         }
       }
     };
@@ -822,20 +1198,46 @@ export const GameViewport: React.FC<GameViewportProps> = ({
         playerRig.root.rotation.y = THREE.MathUtils.damp(playerRig.root.rotation.y, targetRotation, 16, delta);
       }
 
-      // Coils active stats
+      // Coils & Gear active stats
       const activeItem = currentItemRef.current;
       const isSpeedCoil = activeItem === 'speed_coil';
       const isGravityCoil = activeItem === 'gravity_coil';
+      const isJetpack = activeItem === 'jetpack';
+      const isSuperPogo = activeItem === 'super_pogo';
 
       speedMultiplier = isSpeedCoil ? 2.15 : 1.0;
       gravityMultiplier = isGravityCoil ? 1.55 : 1.0;
 
-      const baseSpeed = (worldData.gameMode === 'speed_run' ? 26 : 16) * speedMultiplier;
+      const baseSpeed =
+        (worldData.gameMode === 'kart_speedway'
+          ? 38
+          : worldData.gameMode === 'speed_run'
+          ? 26
+          : 16) * speedMultiplier;
       playerVelocity.x = THREE.MathUtils.damp(playerVelocity.x, moveVec.x * baseSpeed, isGrounded ? 18 : 6, delta);
       playerVelocity.z = THREE.MathUtils.damp(playerVelocity.z, moveVec.z * baseSpeed, isGrounded ? 18 : 6, delta);
 
+      // Jetpack Thruster Flight
+      if (isJetpack && (keys['Space'] || keys['KeyK'])) {
+        if (jetpackFuel > 0) {
+          playerVelocity.y = Math.min(playerVelocity.y + 38 * delta, 24);
+          setJetpackFuel((f) => Math.max(0, f - delta * 25));
+          sound.playJetpackHiss();
+          isGrounded = false;
+        }
+      } else if (isGrounded) {
+        setJetpackFuel((f) => Math.min(100, f + delta * 45));
+      }
+
+      // Super Pogo automatic bounce
+      if (isSuperPogo && isGrounded) {
+        playerVelocity.y = 35;
+        sound.playPogoBounce();
+        isGrounded = false;
+      }
+
       // Jump (with Gravity Coil springiness)
-      if ((keys['Space'] || keys['KeyK']) && isGrounded) {
+      if ((keys['Space'] || keys['KeyK']) && isGrounded && !isJetpack) {
         playerVelocity.y = (isGravityCoil ? 26 : 19) * gravityMultiplier;
         sound.playJump();
         isGrounded = false;
@@ -919,6 +1321,27 @@ export const GameViewport: React.FC<GameViewportProps> = ({
               return nc;
             });
           }
+        } else if (worldData.gameMode === 'kart_speedway') {
+          if (col.standingOnCheckpoint === 2) {
+            passedHalfwayRef.current = true;
+          } else if (col.standingOnCheckpoint === 1 && passedHalfwayRef.current) {
+            passedHalfwayRef.current = false;
+            sound.playCheckpoint();
+            sound.playEngineRev();
+            confetti({ particleCount: 70, spread: 80, origin: { y: 0.6 } });
+            const lapTime = kartLapTimer;
+            setKartLapTimer(0);
+            setKartLap((l) => l + 1);
+            setGameMessage(`LAP COMPLETED: ${lapTime.toFixed(1)}s! 🏎️ +50 Coins!`);
+            setCoins((c) => {
+              const nc = c + 50;
+              const best = kartBestTime === 0 ? Math.round(lapTime) : Math.min(kartBestTime, Math.round(lapTime));
+              setKartBestTime(best);
+              StorageManager.updatePlayerStats({ coins: nc, kartBestTime: best });
+              return nc;
+            });
+            recordMissionAction('laps', 1, 'kart_speedway');
+          }
         } else if (worldData.gameMode === 'ragdoll' && col.standingOnCheckpoint === 100) {
           sound.playCheckpoint();
           sound.playCoin();
@@ -932,6 +1355,115 @@ export const GameViewport: React.FC<GameViewportProps> = ({
             });
             return nc;
           });
+        }
+      }
+
+      // Coaster Train continuous loop traversal
+      if (worldData.gameMode === 'rollercoaster') {
+        coasterT = (coasterT + delta * 0.08) % 1;
+        const loopX = Math.sin(coasterT * Math.PI * 2) * 25;
+        const loopZ = Math.cos(coasterT * Math.PI * 2) * 45 + 30;
+        const loopY = 8 + Math.sin(coasterT * Math.PI * 4) * 12 + (Math.sin(coasterT * Math.PI * 2) > 0 ? 8 : 0);
+        coasterTrain.position.set(loopX, loopY, loopZ);
+        coasterTrain.rotation.y = coasterT * Math.PI * 2 + Math.PI / 2;
+
+        if (isCoasterRidingRef.current) {
+          playerPos.copy(coasterTrain.position).add(new THREE.Vector3(0, 1.2, 0));
+          playerVelocity.set(0, 0, 0);
+        }
+      }
+
+      // CTF Flag pickup & scoring
+      if (worldData.gameMode === 'paintball_ctf') {
+        const distToRedFlag = playerPos.distanceTo(new THREE.Vector3(-32, 2.7, 0));
+        const distToBlueBase = playerPos.distanceTo(new THREE.Vector3(30, 2, 0));
+
+        if (distToRedFlag < 5.0 && hasFlagRef.current === 'none') {
+          hasFlagRef.current = 'red';
+          setHasFlag('red');
+          sound.playSecretKey();
+          setGameMessage('YOU HAVE THE RED FLAG! Sprint back to Blue Base! 🚩');
+        }
+
+        if (distToBlueBase < 6.0 && hasFlagRef.current === 'red') {
+          hasFlagRef.current = 'none';
+          setHasFlag('none');
+          sound.playFanfare();
+          sound.playCoin();
+          confetti({ particleCount: 100, spread: 80, origin: { y: 0.6 } });
+          setCtfScore((s) => ({ ...s, blue: s.blue + 1 }));
+          setGameMessage('FLAG SCORED! +100 BloxCoins! 🏆');
+          setCoins((c) => {
+            const nc = c + 100;
+            StorageManager.updatePlayerStats({
+              ctfCaptures: (StorageManager.getPlayerStats().ctfCaptures || 0) + 1,
+              coins: nc,
+            });
+            return nc;
+          });
+          recordMissionAction('ctf', 1, 'paintball_ctf');
+        }
+      }
+
+      // Kart Speedway Lap Timer
+      if (worldData.gameMode === 'kart_speedway') {
+        setKartLapTimer((t) => t + delta);
+      }
+
+      // Rockets update & detonation
+      for (let i = rockets.length - 1; i >= 0; i--) {
+        const r = rockets[i];
+        r.mesh.position.addScaledVector(r.velocity, delta);
+        r.life -= delta;
+
+        let hit = r.life <= 0 || r.mesh.position.y <= 0.5;
+        if (!hit) {
+          for (const b of bots) {
+            if (b.health > 0 && r.mesh.position.distanceTo(b.position) < 3.2) {
+              hit = true;
+              break;
+            }
+          }
+        }
+
+        if (hit) {
+          sound.playRocketBoom();
+          // AOE blast
+          bots.forEach((b) => {
+            if (b.health <= 0) return;
+            const dist = b.position.distanceTo(r.mesh.position);
+            if (dist < 12) {
+              b.health -= 75;
+              const push = b.position.clone().sub(r.mesh.position).normalize().multiplyScalar(32);
+              push.y = 12;
+              b.velocity.add(push);
+              if (b.health <= 0) {
+                sound.playCoin();
+                sound.playOof();
+                b.rig.root.visible = false;
+                confetti({ particleCount: 40, spread: 70, origin: { y: 0.6 } });
+                if (worldData.gameMode === 'zombie_defense') {
+                  setCoins((c) => {
+                    const nc = c + 25;
+                    StorageManager.updatePlayerStats({
+                      coins: nc,
+                      zombiesKilled: (StorageManager.getPlayerStats().zombiesKilled || 0) + 1,
+                    });
+                    return nc;
+                  });
+                  recordMissionAction('zombies', 1, 'zombie_defense');
+                  window.setTimeout(() => {
+                    b.health = 80;
+                    b.position.set((Math.random() - 0.5) * 40, 1.5, (Math.random() - 0.5) * 40);
+                    b.rig.root.position.copy(b.position);
+                    b.rig.root.visible = true;
+                  }, 5000);
+                }
+              }
+            }
+          });
+          scene.remove(r.mesh);
+          rockets.splice(i, 1);
         }
       }
 
@@ -1477,6 +2009,74 @@ export const GameViewport: React.FC<GameViewportProps> = ({
             </div>
           )}
 
+          {worldData.gameMode === 'zombie_defense' && (
+            <div className="flex items-center gap-3 text-xs font-mono">
+              <span className="text-emerald-400 font-bold">🧟 WAVE {zombieWave}</span>
+              <span className="text-slate-400">·</span>
+              <span className="text-amber-300">DEFEND OUTPOST</span>
+            </div>
+          )}
+
+          {worldData.gameMode === 'paintball_ctf' && (
+            <div className="flex items-center gap-3 text-xs font-mono">
+              <span className="text-red-400 font-bold">RED: {ctfScore.red}</span>
+              <span className="text-slate-400">vs</span>
+              <span className="text-blue-400 font-bold">BLUE: {ctfScore.blue}</span>
+              {hasFlag === 'red' && (
+                <span className="text-amber-300 font-bold animate-pulse">· 🚩 SPRINT HOME!</span>
+              )}
+            </div>
+          )}
+
+          {worldData.gameMode === 'rollercoaster' && (
+            <div className="flex items-center gap-3 text-xs font-mono">
+              <span className="text-pink-400 font-bold">🎢 LOOP ROLLERCOASTER</span>
+              <span className="text-slate-400">·</span>
+              <span className={isCoasterRiding ? 'text-emerald-400 font-bold animate-pulse' : 'text-slate-300'}>
+                {isCoasterRiding ? 'RIDING! (E to Exit)' : 'Press E on cart to ride'}
+              </span>
+            </div>
+          )}
+
+          {worldData.gameMode === 'prop_hunt' && (
+            <div className="flex items-center gap-3 text-xs font-mono">
+              <span className="text-amber-400 font-bold">📦 DISGUISE:</span>
+              <span className={propDisguise === 'none' ? 'text-slate-400' : 'text-emerald-400 font-bold'}>
+                {propDisguise === 'none' ? 'None (Press E on props)' : propDisguise.toUpperCase()}
+              </span>
+            </div>
+          )}
+
+          {worldData.gameMode === 'kart_speedway' && (
+            <div className="flex items-center gap-3 text-xs font-mono">
+              <span className="text-cyan-400 font-bold">🏎️ LAP {kartLap}</span>
+              <span className="text-slate-400">·</span>
+              <span className="text-amber-300">{kartLapTimer.toFixed(1)}s</span>
+              {kartBestTime > 0 && <span className="text-slate-400">(Best: {kartBestTime}s)</span>}
+            </div>
+          )}
+
+          {worldData.gameMode === 'laser_tag' && (
+            <div className="flex items-center gap-3 text-xs font-mono">
+              <span className="text-cyan-400 font-bold">⚡ LASER MATRIX</span>
+              <span className="text-slate-400">·</span>
+              <span className="text-pink-400 font-bold">HITS: {laserHits}</span>
+            </div>
+          )}
+
+          {/* Jetpack Fuel Indicator when Jetpack equipped */}
+          {equippedItem === 'jetpack' && (
+            <div className="flex items-center gap-2 pl-2 border-l border-white/10 text-xs font-mono text-cyan-300">
+              <span>🚀 FUEL</span>
+              <div className="w-16 h-2 bg-slate-800 rounded-full overflow-hidden border border-cyan-500/30">
+                <div
+                  className="h-full bg-cyan-400 transition-all"
+                  style={{ width: `${jetpackFuel}%` }}
+                />
+              </div>
+            </div>
+          )}
+
           {/* Health Bar */}
           <div className="flex items-center gap-2 pl-2 border-l border-white/10">
             <span className="text-xs text-slate-400">HP</span>
@@ -1498,8 +2098,21 @@ export const GameViewport: React.FC<GameViewportProps> = ({
           </div>
         </div>
 
-        {/* Right Action Tools: Fullscreen, Perspective, Ragdoll, Music, Emotes, Menu */}
+        {/* Right Action Tools: Fullscreen, Perspective, Ragdoll, Music, Quests, Emotes, Menu */}
         <div className="flex items-center gap-1.5 sm:gap-2 pointer-events-auto">
+          {/* Daily Quests Trigger */}
+          <button
+            onClick={() => {
+              sound.playClick();
+              setIsDailyMissionsOpen(true);
+            }}
+            title="Daily Missions & Quests"
+            className="bg-slate-900/80 hover:bg-slate-800 border border-amber-500/40 text-amber-300 px-3 py-2 rounded-xl text-xs font-semibold backdrop-blur-xs transition-colors shadow-lg cursor-pointer flex items-center gap-1.5"
+          >
+            <span>📜</span>
+            <span className="hidden sm:inline">Quests</span>
+          </button>
+
           {/* Fullscreen Toggle */}
           <button
             onClick={toggleFullscreen}
@@ -1636,13 +2249,19 @@ export const GameViewport: React.FC<GameViewportProps> = ({
       >
         <span className="text-[10px] font-bold text-slate-400 px-2 tracking-wider shrink-0">GEAR</span>
         {[
-          { id: 'banana_peel', label: '🍌 Banana Peel' },
-          { id: 'rubber_chicken', label: '🐔 Rubber Chicken' },
+          { id: 'rocket_launcher', label: '🚀 Rocket Launcher' },
+          { id: 'grappling_hook', label: '🪝 Grappling Hook' },
+          { id: 'jetpack', label: '🚀 Jetpack' },
+          { id: 'laser_katana', label: '⚡ Laser Katana' },
+          { id: 'super_pogo', label: '🦘 Super Pogo' },
+          { id: 'ghost_cloak', label: '👻 Ghost Cloak' },
           { id: 'sword', label: '⚔️ Sword' },
-          { id: 'slap_hand', label: '✋ Slap Hand' },
           { id: 'paintball_gun', label: '🔫 Paintball' },
           { id: 'speed_coil', label: '⚡ Speed Coil' },
           { id: 'gravity_coil', label: '🔮 Gravity Coil' },
+          { id: 'rubber_chicken', label: '🐔 Rubber Chicken' },
+          { id: 'banana_peel', label: '🍌 Banana Peel' },
+          { id: 'slap_hand', label: '✋ Slap Hand' },
           { id: 'none', label: '✕ Bare Hands' },
         ].map((item) => (
           <button
@@ -1721,13 +2340,19 @@ export const GameViewport: React.FC<GameViewportProps> = ({
                 SELECT EQUIPPED ITEM
               </div>
               {[
-                { id: 'banana_peel', label: '🍌 Banana Peel' },
-                { id: 'rubber_chicken', label: '🐔 Rubber Chicken' },
+                { id: 'rocket_launcher', label: '🚀 Rocket Launcher' },
+                { id: 'grappling_hook', label: '🪝 Grappling Hook' },
+                { id: 'jetpack', label: '🚀 Jetpack' },
+                { id: 'laser_katana', label: '⚡ Laser Katana' },
+                { id: 'super_pogo', label: '🦘 Super Pogo' },
+                { id: 'ghost_cloak', label: '👻 Ghost Cloak' },
                 { id: 'sword', label: '⚔️ Sword' },
-                { id: 'slap_hand', label: '✋ Slap Hand' },
                 { id: 'paintball_gun', label: '🔫 Paintball' },
                 { id: 'speed_coil', label: '⚡ Speed Coil' },
                 { id: 'gravity_coil', label: '🔮 Gravity Coil' },
+                { id: 'rubber_chicken', label: '🐔 Rubber Chicken' },
+                { id: 'banana_peel', label: '🍌 Banana Peel' },
+                { id: 'slap_hand', label: '✋ Slap Hand' },
                 { id: 'none', label: '✕ Bare Hands' },
               ].map((item) => (
                 <button
@@ -1979,6 +2604,13 @@ export const GameViewport: React.FC<GameViewportProps> = ({
           </div>
         </div>
       )}
+
+      {/* Daily Missions Modal */}
+      <DailyMissionsModal
+        isOpen={isDailyMissionsOpen}
+        onClose={() => setIsDailyMissionsOpen(false)}
+        onCoinsAwarded={(amt) => setCoins((c) => c + amt)}
+      />
     </div>
   );
 };

@@ -8,6 +8,7 @@ import { BrickWorldData, UserSettings, AvatarConfig, PlayerStats } from '../type
 import { ALL_BUILTIN_WORLDS } from '../games/builtInWorlds';
 import { StorageManager } from '../storage/worldStorage';
 import { sound } from '../audio/soundEngine';
+import { DailyMissionsModal } from './DailyMissionsModal';
 
 interface MainMenuProps {
   onPlayWorld: (world: BrickWorldData) => void;
@@ -33,6 +34,8 @@ export const MainMenu: React.FC<MainMenuProps> = ({
   const [newWorldName, setNewWorldName] = useState('');
   const [showNewWorldModal, setShowNewWorldModal] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
+  const [showMissionsModal, setShowMissionsModal] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string>('All');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -96,7 +99,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
               activeTab === 'discover' ? 'text-white font-bold border-b-2 border-sky-500 py-4' : 'text-slate-400 hover:text-white'
             }`}
           >
-            Discover Games (9)
+            Discover Games ({ALL_BUILTIN_WORLDS.length})
           </button>
           <button
             onClick={() => {
@@ -123,6 +126,18 @@ export const MainMenu: React.FC<MainMenuProps> = ({
         </nav>
 
         <div className="flex items-center gap-3 shrink-0">
+          {/* Daily Quests Button */}
+          <button
+            onClick={() => {
+              sound.playClick();
+              setShowMissionsModal(true);
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900 hover:bg-slate-800 border border-amber-500/30 text-amber-300 font-mono text-xs font-bold cursor-pointer transition-colors shadow-sm"
+          >
+            <span>📜</span>
+            <span className="hidden sm:inline">Quests</span>
+          </button>
+
           <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-950 border border-white/10 text-amber-400 font-mono text-xs font-bold">
             <span>🪙</span>
             <span>{playerStats.coins}</span>
@@ -190,22 +205,95 @@ export const MainMenu: React.FC<MainMenuProps> = ({
             </div>
           </div>
 
-          {/* Grid of 9 Experiences */}
+          {/* Grid of Experiences */}
           <section className="flex flex-col gap-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <h2 className="text-xl md:text-2xl font-bold text-white tracking-tight">All Experiences (9 Games)</h2>
-                <p className="text-xs text-slate-400">Play ragdoll dismount, lava escape, mystery mansions, tycoons, and parkour</p>
+                <h2 className="text-xl md:text-2xl font-bold text-white tracking-tight">All Experiences (15 Games)</h2>
+                <p className="text-xs text-slate-400">Play zombie defense, paintball CTF, rollercoasters, kart racing, laser tag, and classic obbys</p>
               </div>
-              <span className="text-xs text-slate-500 font-mono">9 Ready to Play</span>
+
+              {/* Category Filter Tabs */}
+              <div className="flex items-center gap-1.5 p-1 bg-slate-900 border border-white/10 rounded-xl overflow-x-auto max-w-full">
+                {['All', 'Action & Combat', 'Obby & Speed', 'Survival & Mystery', 'Tycoon & Chill'].map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => {
+                      sound.playClick();
+                      setSelectedCategory(cat);
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap cursor-pointer transition-colors ${
+                      selectedCategory === cat
+                        ? 'bg-sky-600 text-white shadow-sm'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {[
                 {
+                  id: 'game_zombie_defense',
+                  name: 'Zombie Defense: Night Outpost',
+                  category: 'Action & Combat',
+                  rating: '★ 99%',
+                  badgeEmoji: '🧟',
+                  color: 'from-emerald-700/30 to-slate-900',
+                  desc: 'Defend the fortified desert fort from mutant block zombies! Barricade walls, mount watchtowers, and fire rocket launchers.',
+                },
+                {
+                  id: 'game_paintball_ctf',
+                  name: 'Paintball CTF: Stadium Clash',
+                  category: 'Action & Combat',
+                  rating: '★ 98%',
+                  badgeEmoji: '🚩',
+                  color: 'from-blue-600/30 to-slate-900',
+                  desc: 'Infiltrate the enemy fortress, snatch their team flag, and sprint home while dodging colorful bouncing paintball volleys!',
+                },
+                {
+                  id: 'game_kart_speedway',
+                  name: 'Kart Racing: Neon Grand Prix',
+                  category: 'Obby & Speed',
+                  rating: '★ 99%',
+                  badgeEmoji: '🏎️',
+                  color: 'from-cyan-600/30 to-slate-900',
+                  desc: 'Burn rubber across banked asphalt turns and neon boost chevrons! Race against the clock to set the fastest lap record.',
+                },
+                {
+                  id: 'game_laser_tag',
+                  name: 'Laser Tag: Cyber Matrix',
+                  category: 'Action & Combat',
+                  rating: '★ 98%',
+                  badgeEmoji: '⚡',
+                  color: 'from-purple-600/30 to-slate-900',
+                  desc: 'Glow-in-the-dark cyber battles in a neon double-decker maze with shield recharge pads and bouncing laser beams!',
+                },
+                {
+                  id: 'game_rollercoaster',
+                  name: 'Rollercoaster: Loop Paradise',
+                  category: 'Tycoon & Chill',
+                  rating: '★ 99%',
+                  badgeEmoji: '🎢',
+                  color: 'from-pink-600/30 to-slate-900',
+                  desc: 'Ride the colossal looping coaster across sky tracks, visit carnival food stalls, and launch high into the clouds!',
+                },
+                {
+                  id: 'game_prop_hunt',
+                  name: 'Prop Hunt: Warehouse Mystery',
+                  category: 'Survival & Mystery',
+                  rating: '★ 97%',
+                  badgeEmoji: '📦',
+                  color: 'from-amber-600/30 to-slate-900',
+                  desc: 'Disguise yourself as a crate, barrel, or locker and freeze in place while seeker bots search every warehouse corridor!',
+                },
+                {
                   id: 'game_ragdoll_mayhem',
                   name: 'Ragdoll Mayhem: Mega Stair Dismount',
-                  category: 'Physics & Comedy',
+                  category: 'Tycoon & Chill',
                   rating: '★ 99%',
                   badgeEmoji: '🤸',
                   color: 'from-pink-600/20 to-slate-900',
@@ -214,7 +302,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                 {
                   id: 'game_floor_is_lava',
                   name: 'The Floor is Lava: Volcano Escape',
-                  category: 'Parkour & Survival',
+                  category: 'Survival & Mystery',
                   rating: '★ 98%',
                   badgeEmoji: '🌋',
                   color: 'from-orange-600/20 to-slate-900',
@@ -223,7 +311,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                 {
                   id: 'game_speed_run',
                   name: 'Speed Run: Neon Galaxy',
-                  category: 'High-Speed Parkour',
+                  category: 'Obby & Speed',
                   rating: '★ 99%',
                   badgeEmoji: '⚡',
                   color: 'from-cyan-600/20 to-slate-900',
@@ -232,7 +320,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                 {
                   id: 'game_murder_mansion',
                   name: 'Mystery Murder Mansion',
-                  category: 'Horror & Mystery',
+                  category: 'Survival & Mystery',
                   rating: '★ 96%',
                   badgeEmoji: '🗝️',
                   color: 'from-purple-600/20 to-slate-900',
@@ -241,7 +329,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                 {
                   id: 'game_hide_seek',
                   name: 'Hide & Seek Extreme',
-                  category: 'Stealth & Playroom',
+                  category: 'Survival & Mystery',
                   rating: '★ 97%',
                   badgeEmoji: '🫣',
                   color: 'from-emerald-600/20 to-slate-900',
@@ -250,7 +338,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                 {
                   id: 'game_obby_jump',
                   name: 'Obby Jump: Tower of Bricks',
-                  category: 'Classic Obstacle',
+                  category: 'Obby & Speed',
                   rating: '★ 97%',
                   badgeEmoji: '🧱',
                   color: 'from-amber-600/20 to-slate-900',
@@ -259,7 +347,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                 {
                   id: 'game_disaster_survival',
                   name: 'Disaster Survival: Blox Island',
-                  category: 'Physics & Survival',
+                  category: 'Survival & Mystery',
                   rating: '★ 98%',
                   badgeEmoji: '🌪️',
                   color: 'from-sky-600/20 to-slate-900',
@@ -268,7 +356,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                 {
                   id: 'game_pizza_tycoon',
                   name: 'Pizza Chef Tycoon',
-                  category: 'Tycoon Simulator',
+                  category: 'Tycoon & Chill',
                   rating: '★ 95%',
                   badgeEmoji: '🍕',
                   color: 'from-orange-600/20 to-slate-900',
@@ -277,13 +365,15 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                 {
                   id: 'game_sword_arena',
                   name: 'Sword Arena: Red vs Blue',
-                  category: 'Action Combat',
+                  category: 'Action & Combat',
                   rating: '★ 94%',
                   badgeEmoji: '⚔️',
                   color: 'from-red-600/20 to-slate-900',
                   desc: 'Duel AI bot gladiators with responsive sword slashes, lunge combos, and speed/gravity coil powerups.',
                 },
-              ].map((card) => (
+              ]
+                .filter((card) => selectedCategory === 'All' || card.category === selectedCategory)
+                .map((card) => (
                 <div
                   key={card.id}
                   onClick={() => {
@@ -637,6 +727,13 @@ export const MainMenu: React.FC<MainMenuProps> = ({
           </div>
         </div>
       )}
+
+      {/* Daily Missions Modal */}
+      <DailyMissionsModal
+        isOpen={showMissionsModal}
+        onClose={() => setShowMissionsModal(false)}
+        onCoinsAwarded={() => {}}
+      />
     </div>
   );
 };

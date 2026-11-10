@@ -585,6 +585,323 @@ export const classicBaseplateWorld: BrickWorldData = {
   ],
 };
 
+// ==========================================
+// 11. ZOMBIE DEFENSE: OUTPOST SURVIVAL
+// ==========================================
+export const zombieDefenseWorld: BrickWorldData = {
+  id: 'game_zombie_defense',
+  name: 'Zombie Defense: Night Outpost',
+  description: 'Defend the fortified desert outpost from relentless waves of mutant block zombies! Repair barricades and use heavy weapons.',
+  author: 'BrickVerse Official',
+  version: 1,
+  created: 1700000000000,
+  updated: 1700000000000,
+  gameMode: 'zombie_defense',
+  environment: {
+    skyColor: '#090d16',
+    fogDensity: 0.015,
+    ambientColor: '#1e293b',
+    sunPosition: [-20, 40, -30],
+    sunIntensity: 0.6,
+  },
+  spawnPoint: [0, 1.2, 0],
+  parts: [
+    // Main base ground
+    createPart('zd_ground', 'block', 'Outpost Sand Floor', [0, 0.5, 0], [90, 1, 90], '#78350f', 'plastic'),
+    createPart('zd_courtyard', 'block', 'Concrete Fort Courtyard', [0, 0.55, 0], [36, 1.05, 36], '#475569', 'metal'),
+    createPart('zd_spawn', 'spawn', 'Fort Center Spawn', [0, 1.1, 0], [4, 0.1, 4], '#22c55e', 'neon'),
+
+    // Defense Barricades & Walls
+    createPart('zd_wall_n', 'block', 'North Sandbag Wall', [0, 2.0, 18], [28, 2.0, 2], '#ca8a04', 'wood'),
+    createPart('zd_wall_s', 'block', 'South Sandbag Wall', [0, 2.0, -18], [28, 2.0, 2], '#ca8a04', 'wood'),
+    createPart('zd_wall_e', 'block', 'East Sandbag Wall', [18, 2.0, 0], [2, 2.0, 28], '#ca8a04', 'wood'),
+    createPart('zd_wall_w', 'block', 'West Sandbag Wall', [-18, 2.0, 0], [2, 2.0, 28], '#ca8a04', 'wood'),
+
+    // Watchtowers
+    createPart('zd_tw1', 'block', 'NW Watchtower Base', [-16, 4.5, 16], [5, 7.0, 5], '#334155', 'metal'),
+    createPart('zd_tw1_plat', 'block', 'NW Sniper Platform', [-16, 8.2, 16], [8, 0.6, 8], '#1e293b', 'metal'),
+    createPart('zd_tw2', 'block', 'SE Watchtower Base', [16, 4.5, -16], [5, 7.0, 5], '#334155', 'metal'),
+    createPart('zd_tw2_plat', 'block', 'SE Sniper Platform', [16, 8.2, -16], [8, 0.6, 8], '#1e293b', 'metal'),
+
+    // Defense Turret & Ammo Crates
+    createPart('zd_ammo1', 'block', 'Heavy Ammo Crate', [4, 1.6, 6], [2.2, 1.8, 2.2], '#15803d', 'metal'),
+    createPart('zd_ammo2', 'block', 'Rocket Depot Crate', [-4, 1.6, -6], [2.2, 1.8, 2.2], '#b45309', 'metal'),
+    createPart('zd_repair_bench', 'block', 'Barricade Repair Table', [-6, 1.5, 6], [3.5, 1.4, 2], '#475569', 'wood'),
+
+    // Night Searchlight
+    createPart('zd_light1', 'light', 'Night Searchlight NW', [-16, 9.0, 16], [1, 1, 1], '#fef08a', 'neon', true, false, {
+      lightColor: '#fef08a',
+      lightIntensity: 2.2,
+      lightDistance: 45,
+    }),
+  ],
+};
+
+// ==========================================
+// 12. PAINTBALL CTF (CAPTURE THE FLAG)
+// ==========================================
+export const paintballCtfWorld: BrickWorldData = {
+  id: 'game_paintball_ctf',
+  name: 'Paintball CTF: Stadium Clash',
+  description: 'Infiltrate the enemy base, grab their team flag, and bring it back to your base while dodging colorful paintball fire!',
+  author: 'BrickVerse Official',
+  version: 1,
+  created: 1700000000000,
+  updated: 1700000000000,
+  gameMode: 'paintball_ctf',
+  environment: {
+    skyColor: '#38bdf8',
+    fogDensity: 0.004,
+    ambientColor: '#bae6fd',
+    sunPosition: [30, 60, 40],
+    sunIntensity: 1.3,
+  },
+  spawnPoint: [-28, 1.2, 0],
+  parts: [
+    // Stadium arena floor
+    createPart('ctf_floor', 'block', 'Stadium Turf', [0, 0.5, 0], [90, 1, 60], '#15803d', 'plastic'),
+
+    // Red Base (West)
+    createPart('ctf_red_base', 'block', 'Red Fortress Base', [-30, 1.5, 0], [16, 2, 24], '#b91c1c', 'plastic'),
+    createPart('ctf_red_flag_ped', 'block', 'Red Flag Pedestal', [-32, 2.7, 0], [3, 0.8, 3], '#dc2626', 'metal'),
+    createPart('ctf_red_flag', 'cylinder', 'Red Team Flag', [-32, 4.5, 0], [0.3, 3, 0.3], '#ef4444', 'neon', true, true, {
+      isClue: true, // Marker for red flag
+    }),
+    createPart('ctf_red_spawn', 'spawn', 'Red Spawn', [-26, 2.6, 0], [4, 0.1, 4], '#ef4444', 'neon'),
+
+    // Blue Base (East)
+    createPart('ctf_blue_base', 'block', 'Blue Fortress Base', [30, 1.5, 0], [16, 2, 24], '#1d4ed8', 'plastic'),
+    createPart('ctf_blue_flag_ped', 'block', 'Blue Flag Pedestal', [32, 2.7, 0], [3, 0.8, 3], '#2563eb', 'metal'),
+    createPart('ctf_blue_flag', 'cylinder', 'Blue Team Flag', [32, 4.5, 0], [0.3, 3, 0.3], '#3b82f6', 'neon', true, true, {
+      isClue: true, // Marker for blue flag
+    }),
+    createPart('ctf_blue_spawn', 'block', 'Blue Spawn Marker', [26, 2.6, 0], [4, 0.1, 4], '#3b82f6', 'neon'),
+
+    // Midfield Bunkers & Catwalks
+    createPart('ctf_bunker_mid', 'block', 'Midfield Bunker Cover', [0, 2.5, 0], [10, 3.5, 12], '#475569', 'metal'),
+    createPart('ctf_cover_n1', 'block', 'North Inflatable Barrier', [-10, 2.0, 15], [3, 2.5, 8], '#eab308', 'plastic'),
+    createPart('ctf_cover_n2', 'block', 'North Inflatable Barrier Blue', [10, 2.0, 15], [3, 2.5, 8], '#06b6d4', 'plastic'),
+    createPart('ctf_cover_s1', 'block', 'South Inflatable Barrier', [-10, 2.0, -15], [3, 2.5, 8], '#ec4899', 'plastic'),
+    createPart('ctf_cover_s2', 'block', 'South Inflatable Barrier Blue', [10, 2.0, -15], [3, 2.5, 8], '#a855f7', 'plastic'),
+
+    // Speed pads
+    createPart('ctf_spd_r', 'block', 'Red Rush Pad', [-18, 1.05, 0], [3, 0.1, 6], '#f97316', 'neon', true, true, {
+      conveyorSpeed: [25, 0],
+    }),
+    createPart('ctf_spd_b', 'block', 'Blue Rush Pad', [18, 1.05, 0], [3, 0.1, 6], '#06b6d4', 'neon', true, true, {
+      conveyorSpeed: [-25, 0],
+    }),
+  ],
+};
+
+// ==========================================
+// 13. ROLLERCOASTER THEME PARK
+// ==========================================
+export const rollercoasterWorld: BrickWorldData = {
+  id: 'game_rollercoaster',
+  name: 'Rollercoaster Theme Park: Loop Paradise',
+  description: 'Ride the colossal high-speed coaster across sky loops, explore carnival food stalls, and launch into the air!',
+  author: 'BrickVerse Official',
+  version: 1,
+  created: 1700000000000,
+  updated: 1700000000000,
+  gameMode: 'rollercoaster',
+  environment: {
+    skyColor: '#60a5fa',
+    fogDensity: 0.003,
+    ambientColor: '#fef08a',
+    sunPosition: [50, 70, 20],
+    sunIntensity: 1.4,
+  },
+  spawnPoint: [0, 1.2, 0],
+  parts: [
+    // Theme park plaza
+    createPart('rc_plaza', 'block', 'Park Plaza Stone', [0, 0.5, 0], [90, 1, 90], '#e2e8f0', 'plastic'),
+    createPart('rc_spawn', 'spawn', 'Plaza Spawn Hub', [0, 1.1, 0], [6, 0.1, 6], '#ec4899', 'neon'),
+
+    // Coaster Boarding Station
+    createPart('rc_station_floor', 'block', 'Coaster Station Platform', [0, 3.5, 20], [18, 1, 14], '#0284c7', 'metal'),
+    createPart('rc_station_roof', 'block', 'Station Canopy', [0, 8.5, 20], [20, 0.6, 16], '#ef4444', 'plastic'),
+    createPart('rc_cart_seat', 'block', 'Ride Cart Boarding Trigger', [0, 4.3, 20], [5, 1.2, 8], '#eab308', 'metal', true, true, {
+      isCoinPickup: true,
+    }),
+
+    // High Elevation Sky Coaster Loop Rails
+    createPart('rc_rail_lift', 'wedge', 'Coaster Lift Hill 1', [0, 12, 45], [4, 16, 25], '#dc2626', 'metal'),
+    createPart('rc_rail_crest', 'block', 'Sky Summit 1', [0, 20.5, 60], [6, 1, 10], '#dc2626', 'metal'),
+    createPart('rc_rail_drop', 'wedge', 'Mega Drop 1', [0, 10, 75], [4, 20, 25], '#dc2626', 'metal'),
+    createPart('rc_rail_loop_l', 'block', 'Loop Left Wing', [-12, 16, 90], [4, 18, 6], '#0284c7', 'metal'),
+    createPart('rc_rail_loop_r', 'block', 'Loop Right Wing', [12, 16, 90], [4, 18, 6], '#0284c7', 'metal'),
+    createPart('rc_rail_loop_top', 'block', 'Inverted Loop Peak', [0, 26, 90], [24, 2, 6], '#facc15', 'neon'),
+
+    // Carnival Stalls & Tents
+    createPart('rc_stall1', 'block', 'Cotton Candy Stand', [-16, 2.0, -12], [6, 3, 5], '#f472b6', 'wood'),
+    createPart('rc_stall2', 'block', 'Popcorn & Soda Booth', [16, 2.0, -12], [6, 3, 5], '#fbbf24', 'wood'),
+    createPart('rc_tent_circus', 'cylinder', 'Circus Tent Rotunda', [0, 5.0, -32], [14, 8, 14], '#9333ea', 'plastic'),
+
+    // High Sky Spring Trampoline
+    createPart('rc_bounce_sky', 'bounce', 'Super Carnival Bouncer', [22, 1.2, 15], [5, 0.6, 5], '#10b981', 'neon', true, true, {
+      bounceForce: 52,
+    }),
+  ],
+};
+
+// ==========================================
+// 14. PROP HUNT MYSTERY: WAREHOUSE DISGUISE
+// ==========================================
+export const propHuntWorld: BrickWorldData = {
+  id: 'game_prop_hunt',
+  name: 'Prop Hunt: Warehouse Mystery',
+  description: 'Disguise yourself as a crate, barrel, or bench and blend into the warehouse while seeker bots search every corner!',
+  author: 'BrickVerse Official',
+  version: 1,
+  created: 1700000000000,
+  updated: 1700000000000,
+  gameMode: 'prop_hunt',
+  environment: {
+    skyColor: '#1e293b',
+    fogDensity: 0.008,
+    ambientColor: '#cbd5e1',
+    sunPosition: [10, 45, 10],
+    sunIntensity: 0.9,
+  },
+  spawnPoint: [0, 1.2, 0],
+  parts: [
+    // Warehouse interior floor
+    createPart('ph_floor', 'block', 'Polished Concrete Floor', [0, 0.5, 0], [70, 1, 70], '#334155', 'metal'),
+    createPart('ph_spawn', 'spawn', 'Warehouse Center Spawn', [0, 1.1, 0], [4, 0.1, 4], '#38bdf8', 'neon'),
+
+    // Warehouse Outer Walls
+    createPart('ph_wall_n', 'block', 'North Corrugated Wall', [0, 6.0, 35], [70, 10.0, 2], '#475569', 'metal'),
+    createPart('ph_wall_s', 'block', 'South Corrugated Wall', [0, 6.0, -35], [70, 10.0, 2], '#475569', 'metal'),
+    createPart('ph_wall_e', 'block', 'East Corrugated Wall', [35, 6.0, 0], [2, 10.0, 70], '#475569', 'metal'),
+    createPart('ph_wall_w', 'block', 'West Corrugated Wall', [-35, 6.0, 0], [2, 10.0, 70], '#475569', 'metal'),
+
+    // Disguise Stations (Transform player prop!)
+    createPart('ph_disg_crate', 'block', 'Disguise Station: Wooden Crate', [-6, 1.2, -6], [2.5, 1.5, 2.5], '#b45309', 'wood', true, true, {
+      isClue: true,
+    }),
+    createPart('ph_disg_barrel', 'cylinder', 'Disguise Station: Bio Barrel', [6, 1.2, -6], [2.2, 2.5, 2.2], '#16a34a', 'neon', true, true, {
+      isClue: true,
+    }),
+    createPart('ph_disg_bench', 'block', 'Disguise Station: Metal Locker', [0, 2.0, -12], [2.0, 3.8, 1.8], '#0284c7', 'metal', true, true, {
+      isClue: true,
+    }),
+
+    // Clutter: Real Props for camouflage
+    createPart('ph_p_crate1', 'block', 'Cargo Crate Stack 1', [-18, 2.0, 15], [3, 3, 3], '#92400e', 'wood'),
+    createPart('ph_p_crate2', 'block', 'Cargo Crate Stack 2', [-18, 5.0, 15], [2.5, 2.5, 2.5], '#b45309', 'wood'),
+    createPart('ph_p_barrel1', 'cylinder', 'Oil Barrel Blue', [18, 1.8, 15], [2, 2.6, 2], '#1e40af', 'metal'),
+    createPart('ph_p_barrel2', 'cylinder', 'Oil Barrel Red', [21, 1.8, 15], [2, 2.6, 2], '#991b1b', 'metal'),
+    createPart('ph_p_rack', 'block', 'Industrial Storage Rack', [0, 4.0, 22], [22, 7.0, 3], '#64748b', 'metal'),
+  ],
+};
+
+// ==========================================
+// 15. KART RACING SPEEDWAY
+// ==========================================
+export const kartSpeedwayWorld: BrickWorldData = {
+  id: 'game_kart_speedway',
+  name: 'Kart Racing: Neon Grand Prix',
+  description: 'Burn rubber across a high-speed circuit with curved asphalt, drift boost pads, and lap time challenges!',
+  author: 'BrickVerse Official',
+  version: 1,
+  created: 1700000000000,
+  updated: 1700000000000,
+  gameMode: 'kart_speedway',
+  environment: {
+    skyColor: '#0f172a',
+    fogDensity: 0.003,
+    ambientColor: '#38bdf8',
+    sunPosition: [20, 60, 20],
+    sunIntensity: 1.2,
+  },
+  spawnPoint: [0, 1.2, 0],
+  parts: [
+    // Speedway base infield
+    createPart('ks_infield', 'block', 'Infield Grass', [0, 0.45, 0], [110, 0.9, 110], '#15803d', 'plastic'),
+
+    // Starting Line / Checkpoint
+    createPart('ks_start_pad', 'checkpoint', 'Start & Finish Lap Gate', [0, 1.05, 0], [12, 0.1, 4], '#facc15', 'neon', true, true, {
+      checkpointIndex: 1,
+    }),
+    createPart('ks_arch_l', 'block', 'Finish Arch Left', [-6.5, 3.5, 0], [1, 5.0, 1], '#0284c7', 'metal'),
+    createPart('ks_arch_r', 'block', 'Finish Arch Right', [6.5, 3.5, 0], [1, 5.0, 1], '#0284c7', 'metal'),
+    createPart('ks_arch_top', 'block', 'Finish Arch Banner', [0, 6.0, 0], [14, 1.2, 1], '#ef4444', 'neon'),
+
+    // Straightaway North Track
+    createPart('ks_str_n', 'block', 'North Straight Track', [0, 1.0, 22], [12, 0.8, 40], '#1e293b', 'metal'),
+    createPart('ks_bst_n', 'block', 'Hyper Boost Chevron N', [0, 1.05, 25], [6, 0.1, 8], '#06b6d4', 'neon', true, true, {
+      conveyorSpeed: [0, 48],
+    }),
+
+    // Turn 1 East
+    createPart('ks_turn_1', 'block', 'Turn 1 Apex', [22, 1.0, 42], [35, 0.8, 12], '#1e293b', 'metal'),
+    createPart('ks_chk_2', 'checkpoint', 'Midway Checkpoint Turn 1', [25, 1.05, 42], [4, 0.1, 12], '#10b981', 'neon', true, true, {
+      checkpointIndex: 2,
+    }),
+
+    // Backstretch South
+    createPart('ks_str_s', 'block', 'Backstretch Track', [40, 1.0, 0], [12, 0.8, 72], '#1e293b', 'metal'),
+    createPart('ks_bst_s', 'block', 'Hyper Boost Chevron S', [40, 1.05, 0], [6, 0.1, 8], '#f59e0b', 'neon', true, true, {
+      conveyorSpeed: [0, -48],
+    }),
+
+    // Turn 2 Loop Return
+    createPart('ks_turn_2', 'block', 'Hairpin Turn 2', [20, 1.0, -40], [45, 0.8, 12], '#1e293b', 'metal'),
+    createPart('ks_turn_3', 'block', 'Final Chicane Return', [-15, 1.0, -20], [14, 0.8, 45], '#1e293b', 'metal'),
+
+    // Grandstands with cheering blocks
+    createPart('ks_stands', 'block', 'Spectator Grandstands', [-18, 3.5, 10], [8, 5.0, 30], '#334155', 'metal'),
+  ],
+};
+
+// ==========================================
+// 16. LASER TAG ARENA: NEON CYBER MATRIX
+// ==========================================
+export const laserTagWorld: BrickWorldData = {
+  id: 'game_laser_tag',
+  name: 'Laser Tag: Cyber Matrix',
+  description: 'Fast-paced neon laser battles in a glow-in-the-dark double-decker maze with shield recharge pads and mirror reflections!',
+  author: 'BrickVerse Official',
+  version: 1,
+  created: 1700000000000,
+  updated: 1700000000000,
+  gameMode: 'laser_tag',
+  environment: {
+    skyColor: '#020617',
+    fogDensity: 0.012,
+    ambientColor: '#38bdf8',
+    sunPosition: [0, 40, 0],
+    sunIntensity: 0.5,
+  },
+  spawnPoint: [0, 1.2, 0],
+  parts: [
+    // Arena dark floor with grid
+    createPart('lt_floor', 'block', 'Grid Floor Matrix', [0, 0.5, 0], [80, 1, 80], '#020617', 'metal'),
+    createPart('lt_spawn', 'spawn', 'Center Arena Spawn', [0, 1.1, 0], [4, 0.1, 4], '#06b6d4', 'neon'),
+
+    // Glowing Neon Maze Partitions
+    createPart('lt_w_cyan1', 'block', 'Cyan Barrier 1', [-12, 3.0, 12], [2, 4.5, 18], '#06b6d4', 'neon'),
+    createPart('lt_w_pink1', 'block', 'Magenta Barrier 1', [12, 3.0, -12], [2, 4.5, 18], '#ec4899', 'neon'),
+    createPart('lt_w_yellow1', 'block', 'Yellow Cross Wall', [0, 3.0, 22], [24, 4.5, 2], '#facc15', 'neon'),
+    createPart('lt_w_green1', 'block', 'Green Cross Wall', [0, 3.0, -22], [24, 4.5, 2], '#10b981', 'neon'),
+
+    // Upper Mezzanine Sniper Deck
+    createPart('lt_deck_c', 'block', 'Upper Sniper Deck', [0, 6.0, 0], [16, 0.8, 16], '#1e293b', 'metal'),
+    createPart('lt_deck_ramp_n', 'wedge', 'North Catwalk Ramp', [0, 3.2, 14], [5, 5.0, 12], '#0f172a', 'metal'),
+    createPart('lt_deck_ramp_s', 'wedge', 'South Catwalk Ramp', [0, 3.2, -14], [5, 5.0, 12], '#0f172a', 'metal'),
+
+    // Shield Recharge Pods
+    createPart('lt_shield_w', 'bounce', 'Shield Recharge Pod West', [-22, 1.15, 0], [4, 0.3, 4], '#3b82f6', 'neon', true, true, {
+      bounceForce: 28,
+    }),
+    createPart('lt_shield_e', 'bounce', 'Shield Recharge Pod East', [22, 1.15, 0], [4, 0.3, 4], '#a855f7', 'neon', true, true, {
+      bounceForce: 28,
+    }),
+  ],
+};
+
 export const ALL_BUILTIN_WORLDS: BrickWorldData[] = [
   obbyWorld,
   disasterWorld,
@@ -596,5 +913,13 @@ export const ALL_BUILTIN_WORLDS: BrickWorldData[] = [
   ragdollWorld,
   floorLavaWorld,
   classicBaseplateWorld,
+  // 6 Mega Expansion Worlds
+  zombieDefenseWorld,
+  paintballCtfWorld,
+  rollercoasterWorld,
+  propHuntWorld,
+  kartSpeedwayWorld,
+  laserTagWorld,
 ];
+
 

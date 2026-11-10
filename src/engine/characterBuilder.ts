@@ -25,7 +25,13 @@ export type EquippedItemType =
   | 'paintball_gun'
   | 'boombox'
   | 'banana_peel'
-  | 'rubber_chicken';
+  | 'rubber_chicken'
+  | 'rocket_launcher'
+  | 'grappling_hook'
+  | 'jetpack'
+  | 'laser_katana'
+  | 'super_pogo'
+  | 'ghost_cloak';
 
 export interface CharacterRig {
   root: THREE.Group;
@@ -813,6 +819,181 @@ export function buildCharacter(config: AvatarConfig): CharacterRig {
       comb.position.set(0, 1.45, 0);
       chickenGroup.add(comb);
       rightHandItem.add(chickenGroup);
+    } else if (itemType === 'rocket_launcher') {
+      const rlGroup = new THREE.Group();
+      rlGroup.rotation.x = Math.PI / 2;
+      // Main tube
+      const tube = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.18, 0.18, 2.2, 12),
+        new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.8, roughness: 0.25 })
+      );
+      tube.position.set(0, 0.4, 0);
+      rlGroup.add(tube);
+      // Exhaust bell
+      const bell = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.24, 0.16, 0.4, 12),
+        new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.9 })
+      );
+      bell.position.set(0, -0.8, 0);
+      rlGroup.add(bell);
+      // Sight
+      const sight = new THREE.Mesh(
+        new THREE.BoxGeometry(0.1, 0.35, 0.2),
+        new THREE.MeshStandardMaterial({ color: 0xef4444 })
+      );
+      sight.position.set(0.22, 0.6, 0);
+      rlGroup.add(sight);
+      // Rocket warhead
+      const warhead = new THREE.Mesh(
+        new THREE.ConeGeometry(0.17, 0.5, 8),
+        new THREE.MeshStandardMaterial({ color: 0xeab308, metalness: 0.4 })
+      );
+      warhead.position.set(0, 1.6, 0);
+      rlGroup.add(warhead);
+      rightHandItem.add(rlGroup);
+    } else if (itemType === 'grappling_hook') {
+      const ghGroup = new THREE.Group();
+      ghGroup.rotation.x = Math.PI / 2;
+      // Body pistol
+      const body = new THREE.Mesh(
+        new THREE.BoxGeometry(0.25, 0.9, 0.3),
+        new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.7 })
+      );
+      body.position.set(0, 0.4, 0);
+      ghGroup.add(body);
+      // Reel spool
+      const spool = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.2, 0.2, 0.22, 10),
+        new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.5 })
+      );
+      spool.rotation.z = Math.PI / 2;
+      spool.position.set(0, 0.1, 0.18);
+      ghGroup.add(spool);
+      // Anchor 3-prong claw
+      for (let i = 0; i < 3; i++) {
+        const prong = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.04, 0.04, 0.5, 6),
+          new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.9 })
+        );
+        const ang = (i / 3) * Math.PI * 2;
+        prong.position.set(Math.cos(ang) * 0.18, 0.9, Math.sin(ang) * 0.18);
+        prong.rotation.z = Math.cos(ang) * 0.5;
+        prong.rotation.x = Math.sin(ang) * 0.5;
+        ghGroup.add(prong);
+      }
+      rightHandItem.add(ghGroup);
+    } else if (itemType === 'jetpack') {
+      const jpGroup = new THREE.Group();
+      // Dual thruster cylinders
+      const tankMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.85, roughness: 0.2 });
+      const nozzleMat = new THREE.MeshStandardMaterial({ color: 0x06b6d4, emissive: 0x0891b2, emissiveIntensity: 0.8 });
+      [-0.25, 0.25].forEach((xOff) => {
+        const canister = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 1.1, 10), tankMat);
+        canister.position.set(xOff, 0.3, 0);
+        jpGroup.add(canister);
+        const nozzle = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.22, 0.3, 10), nozzleMat);
+        nozzle.position.set(xOff, -0.35, 0);
+        jpGroup.add(nozzle);
+      });
+      // Cross frame
+      const frame = new THREE.Mesh(
+        new THREE.BoxGeometry(0.8, 0.25, 0.18),
+        new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.9 })
+      );
+      frame.position.set(0, 0.3, 0.1);
+      jpGroup.add(frame);
+      rightHandItem.add(jpGroup);
+    } else if (itemType === 'laser_katana') {
+      const lkGroup = new THREE.Group();
+      lkGroup.rotation.x = Math.PI / 2;
+      // Cyber hilt
+      const hilt = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.06, 0.07, 0.6, 8),
+        new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.9, roughness: 0.2 })
+      );
+      hilt.position.set(0, -0.2, 0);
+      lkGroup.add(hilt);
+      // Guard
+      const guard = new THREE.Mesh(
+        new THREE.TorusGeometry(0.18, 0.04, 6, 16),
+        new THREE.MeshStandardMaterial({ color: 0x06b6d4, emissive: 0x0891b2, emissiveIntensity: 1 })
+      );
+      guard.rotation.x = Math.PI / 2;
+      guard.position.set(0, 0.1, 0);
+      lkGroup.add(guard);
+      // Glowing energy blade
+      const blade = new THREE.Mesh(
+        new THREE.BoxGeometry(0.1, 2.0, 0.04),
+        new THREE.MeshStandardMaterial({
+          color: 0x22d3ee,
+          emissive: 0x06b6d4,
+          emissiveIntensity: 1.8,
+          metalness: 0.2,
+          roughness: 0.1,
+        })
+      );
+      blade.position.set(0, 1.1, 0);
+      lkGroup.add(blade);
+      rightHandItem.add(lkGroup);
+    } else if (itemType === 'super_pogo') {
+      const pogoGroup = new THREE.Group();
+      // Main central chrome shaft
+      const shaft = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.05, 0.05, 2.2, 8),
+        new THREE.MeshStandardMaterial({ color: 0xfacc15, metalness: 0.6 })
+      );
+      pogoGroup.add(shaft);
+      // Handlebars
+      const bar = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.05, 0.05, 0.9, 8),
+        new THREE.MeshStandardMaterial({ color: 0x1e293b })
+      );
+      bar.rotation.z = Math.PI / 2;
+      bar.position.set(0, 1.0, 0);
+      pogoGroup.add(bar);
+      // Foot pegs
+      const pegs = new THREE.Mesh(
+        new THREE.BoxGeometry(0.8, 0.1, 0.2),
+        new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.8 })
+      );
+      pegs.position.set(0, -0.6, 0);
+      pogoGroup.add(pegs);
+      // Heavy spring coil
+      const spring = new THREE.Mesh(
+        new THREE.TorusGeometry(0.14, 0.04, 6, 16),
+        new THREE.MeshStandardMaterial({ color: 0xef4444, metalness: 0.7 })
+      );
+      spring.position.set(0, -0.9, 0);
+      pogoGroup.add(spring);
+      rightHandItem.add(pogoGroup);
+    } else if (itemType === 'ghost_cloak') {
+      const ghostGroup = new THREE.Group();
+      // Ethereal floating orb
+      const orb = new THREE.Mesh(
+        new THREE.SphereGeometry(0.35, 12, 12),
+        new THREE.MeshStandardMaterial({
+          color: 0xc084fc,
+          emissive: 0x9333ea,
+          emissiveIntensity: 1.4,
+          transparent: true,
+          opacity: 0.65,
+        })
+      );
+      ghostGroup.add(orb);
+      // Orbiting ethereal ring
+      const ring = new THREE.Mesh(
+        new THREE.TorusGeometry(0.5, 0.03, 6, 16),
+        new THREE.MeshStandardMaterial({
+          color: 0xa855f7,
+          emissive: 0xd8b4fe,
+          emissiveIntensity: 1.2,
+          transparent: true,
+          opacity: 0.8,
+        })
+      );
+      ring.rotation.x = Math.PI / 3;
+      ghostGroup.add(ring);
+      rightHandItem.add(ghostGroup);
     }
   }
 

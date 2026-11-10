@@ -510,6 +510,182 @@ class SoundEngine {
       osc.stop(now + 0.13);
     } catch {}
   }
+
+  // --- MEGA EXPANSION SFX ---
+  public playRocketBoom() {
+    try {
+      this.init();
+      if (!this.ctx || !this.volumeNode || this.volume === 0) return;
+      const now = this.ctx.currentTime;
+
+      // Noise buffer for blast
+      const bufferSize = this.ctx.sampleRate * 0.45;
+      const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (this.ctx.sampleRate * 0.1));
+      }
+      const noise = this.ctx.createBufferSource();
+      noise.buffer = buffer;
+
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(450, now);
+      filter.frequency.exponentialRampToValueAtTime(80, now + 0.4);
+
+      const gain = this.ctx.createGain();
+      gain.gain.setValueAtTime(0.65, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.42);
+
+      noise.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.volumeNode);
+      noise.start(now);
+
+      // Low bass punch
+      const bass = this.ctx.createOscillator();
+      const bassGain = this.ctx.createGain();
+      bass.type = 'sawtooth';
+      bass.frequency.setValueAtTime(120, now);
+      bass.frequency.exponentialRampToValueAtTime(30, now + 0.35);
+      bassGain.gain.setValueAtTime(0.5, now);
+      bassGain.gain.exponentialRampToValueAtTime(0.01, now + 0.38);
+      bass.connect(bassGain);
+      bassGain.connect(this.volumeNode);
+      bass.start(now);
+      bass.stop(now + 0.4);
+    } catch {}
+  }
+
+  public playLaserBeam() {
+    try {
+      this.init();
+      if (!this.ctx || !this.volumeNode || this.volume === 0) return;
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(1400, now);
+      osc.frequency.exponentialRampToValueAtTime(220, now + 0.16);
+
+      gain.gain.setValueAtTime(0.3, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.18);
+
+      osc.connect(gain);
+      gain.connect(this.volumeNode);
+      osc.start(now);
+      osc.stop(now + 0.2);
+    } catch {}
+  }
+
+  public playJetpackHiss() {
+    try {
+      this.init();
+      if (!this.ctx || !this.volumeNode || this.volume === 0) return;
+      const now = this.ctx.currentTime;
+      const bufferSize = Math.floor(this.ctx.sampleRate * 0.18);
+      const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = (Math.random() * 2 - 1) * 0.3;
+      }
+      const noise = this.ctx.createBufferSource();
+      noise.buffer = buffer;
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.setValueAtTime(900, now);
+      const gain = this.ctx.createGain();
+      gain.gain.setValueAtTime(0.18, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.18);
+      noise.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.volumeNode);
+      noise.start(now);
+    } catch {}
+  }
+
+  public playPogoBounce() {
+    try {
+      this.init();
+      if (!this.ctx || !this.volumeNode || this.volume === 0) return;
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(240, now);
+      osc.frequency.exponentialRampToValueAtTime(850, now + 0.1);
+      osc.frequency.exponentialRampToValueAtTime(420, now + 0.22);
+      gain.gain.setValueAtTime(0.4, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.24);
+      osc.connect(gain);
+      gain.connect(this.volumeNode);
+      osc.start(now);
+      osc.stop(now + 0.25);
+    } catch {}
+  }
+
+  public playEngineRev() {
+    try {
+      this.init();
+      if (!this.ctx || !this.volumeNode || this.volume === 0) return;
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(80, now);
+      osc.frequency.exponentialRampToValueAtTime(220, now + 0.25);
+      gain.gain.setValueAtTime(0.22, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.28);
+      osc.connect(gain);
+      gain.connect(this.volumeNode);
+      osc.start(now);
+      osc.stop(now + 0.3);
+    } catch {}
+  }
+
+  public playFanfare() {
+    try {
+      this.init();
+      if (!this.ctx || !this.volumeNode || this.volume === 0) return;
+      const now = this.ctx.currentTime;
+      const notes = [523.25, 659.25, 783.99, 1046.5];
+      notes.forEach((freq, i) => {
+        if (!this.ctx || !this.volumeNode) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        const start = now + i * 0.1;
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, start);
+        gain.gain.setValueAtTime(0.3, start);
+        gain.gain.exponentialRampToValueAtTime(0.01, start + 0.25);
+        osc.connect(gain);
+        gain.connect(this.volumeNode);
+        osc.start(start);
+        osc.stop(start + 0.28);
+      });
+    } catch {}
+  }
+
+  public playDisguisePop() {
+    try {
+      this.init();
+      if (!this.ctx || !this.volumeNode || this.volume === 0) return;
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(600, now);
+      osc.frequency.exponentialRampToValueAtTime(1400, now + 0.08);
+      gain.gain.setValueAtTime(0.35, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+      osc.connect(gain);
+      gain.connect(this.volumeNode);
+      osc.start(now);
+      osc.stop(now + 0.12);
+    } catch {}
+  }
 }
 
 export const sound = new SoundEngine();
+

@@ -54,7 +54,13 @@ export type GameModeType =
   | 'murder'
   | 'hide_seek'
   | 'ragdoll'
-  | 'floor_lava';
+  | 'floor_lava'
+  | 'zombie_defense'
+  | 'paintball_ctf'
+  | 'rollercoaster'
+  | 'prop_hunt'
+  | 'kart_speedway'
+  | 'laser_tag';
 
 export interface BrickWorldData {
   id: string;
@@ -144,6 +150,26 @@ export interface UserSettings {
   showTouchControls: boolean;
 }
 
+export interface DailyMission {
+  id: string;
+  title: string;
+  description: string;
+  targetCount: number;
+  currentCount: number;
+  rewardCoins: number;
+  completed: boolean;
+  claimed: boolean;
+  icon: string;
+  gameMode?: GameModeType;
+  actionKey: 'zombies' | 'laps' | 'coaster' | 'ctf' | 'lasers' | 'props' | 'coins' | 'play_game';
+}
+
+export interface DailyMissionsState {
+  dateStr: string;
+  streak: number;
+  missions: DailyMission[];
+}
+
 export interface PlayerStats {
   coins: number;
   gamesPlayed: number;
@@ -156,4 +182,12 @@ export interface PlayerStats {
   hideAndSeekWins: number;
   ragdollScore: number;
   lavaEscapes: number;
+  // Mega Expansion Stats
+  zombiesKilled: number;
+  ctfCaptures: number;
+  coasterRides: number;
+  propsFound: number;
+  kartBestTime: number;
+  laserTagHits: number;
 }
+

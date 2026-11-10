@@ -11,6 +11,7 @@ import { GameViewport } from './engine/GameViewport';
 import { AvatarEditor } from './components/AvatarEditor';
 import { WorldStudio } from './studio/WorldStudio';
 import { sound } from './audio/soundEngine';
+import { recordMissionAction } from './utils/dailyMissions';
 
 type AppMode = 'menu' | 'game' | 'studio' | 'avatar';
 
@@ -35,6 +36,7 @@ export default function App() {
     setActiveWorld(world);
     setIsStudioTestPlay(false);
     setAppMode('game');
+    recordMissionAction('play_game', 1, world.gameMode);
     setPlayerStats(StorageManager.updatePlayerStats({ gamesPlayed: playerStats.gamesPlayed + 1 }));
   };
 
@@ -54,6 +56,7 @@ export default function App() {
 
   // Handler: Exit Game Viewport
   const handleExitGame = () => {
+    setPlayerStats(StorageManager.getPlayerStats());
     if (isStudioTestPlay && activeWorld) {
       setAppMode('studio');
     } else {
