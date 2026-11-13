@@ -4,6 +4,7 @@
  */
 
 import { BrickWorldData, BrickPart } from '../types/game';
+import { MEGA_EXPANSION_WORLDS } from './megaExpansionWorlds';
 
 // Helper to create parts concisely
 function createPart(
@@ -920,6 +921,8 @@ export const ALL_BUILTIN_WORLDS: BrickWorldData[] = [
   propHuntWorld,
   kartSpeedwayWorld,
   laserTagWorld,
+  // 26 New Mega Expansion Worlds (42 Total)
+  ...MEGA_EXPANSION_WORLDS,
 ];
 
 

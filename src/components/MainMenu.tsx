@@ -6,6 +6,7 @@
 import React, { useRef, useState } from 'react';
 import { BrickWorldData, UserSettings, AvatarConfig, PlayerStats, PlayMode } from '../types/game';
 import { ALL_BUILTIN_WORLDS } from '../games/builtInWorlds';
+import { WORLD_CATALOG, WORLD_CATEGORIES, WorldCategory } from '../games/worldCatalog';
 import { StorageManager } from '../storage/worldStorage';
 import { sound } from '../audio/soundEngine';
 import { DailyMissionsModal } from './DailyMissionsModal';
@@ -45,9 +46,30 @@ export const MainMenu: React.FC<MainMenuProps> = ({
   const [showNewWorldModal, setShowNewWorldModal] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const [showMissionsModal, setShowMissionsModal] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [selectedCategory, setSelectedCategory] = useState<WorldCategory>('All');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const filteredCatalog = WORLD_CATALOG.filter((card) => {
+    const matchesCategory = selectedCategory === 'All' || card.category === selectedCategory;
+    if (!matchesCategory) return false;
+    if (!normalizedQuery) return true;
+    return (
+      card.name.toLowerCase().includes(normalizedQuery) ||
+      card.desc.toLowerCase().includes(normalizedQuery) ||
+      card.category.toLowerCase().includes(normalizedQuery)
+    );
+  });
+
+  const handleLaunchRandomWorld = () => {
+    sound.playClick();
+    const pool = filteredCatalog.length > 0 ? filteredCatalog : WORLD_CATALOG;
+    const pick = pool[Math.floor(Math.random() * pool.length)];
+    const target = ALL_BUILTIN_WORLDS.find((w) => w.id === pick.id) || ALL_BUILTIN_WORLDS[0];
+    onPlayWorld(target);
+  };
 
   const handleCreateNewWorld = () => {
     if (!newWorldName.trim()) return;
@@ -282,214 +304,141 @@ export const MainMenu: React.FC<MainMenuProps> = ({
 
           {/* Grid of Experiences */}
           <section className="flex flex-col gap-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <h2 className="text-xl md:text-2xl font-bold text-white tracking-tight">All Experiences (15 Games)</h2>
-                <p className="text-xs text-slate-400">Play zombie defense, paintball CTF, rollercoasters, kart racing, laser tag, and classic obbys</p>
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-xl md:text-2xl font-bold text-white tracking-tight">
+                    All Experiences ({WORLD_CATALOG.length} Games)
+                  </h2>
+                  <p className="text-xs text-slate-400">
+                    Sumo knockouts, colossal Titan Boss raids, BrickBall soccer, Zero-G space battles, Wipeout obbys, racing & more
+                  </p>
+                </div>
+
+                {/* Search + Random Surprise Launcher */}
+                <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
+                  <div className="flex items-center gap-2 bg-slate-900 border border-white/10 focus-within:border-sky-500/60 rounded-xl px-3.5 py-2 w-full sm:w-64 transition-colors">
+                    <span className="text-slate-400 text-xs">🔍</span>
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder={`Search ${WORLD_CATALOG.length} games...`}
+                      className="bg-transparent text-xs text-white placeholder-slate-500 flex-1 focus:outline-none"
+                    />
+                    {searchQuery && (
+                      <button
+                        onClick={() => setSearchQuery('')}
+                        className="text-slate-400 hover:text-white text-xs cursor-pointer"
+                        title="Clear search"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={handleLaunchRandomWorld}
+                    className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-bold text-xs px-4 py-2 rounded-xl transition-all shadow-md shadow-amber-950/40 cursor-pointer flex items-center gap-1.5 whitespace-nowrap shrink-0"
+                  >
+                    <span>🎲</span>
+                    <span>Surprise Me</span>
+                  </button>
+                </div>
               </div>
 
               {/* Category Filter Tabs */}
-              <div className="flex items-center gap-1.5 p-1 bg-slate-900 border border-white/10 rounded-xl overflow-x-auto max-w-full">
-                {['All', 'Action & Combat', 'Obby & Speed', 'Survival & Mystery', 'Tycoon & Chill'].map((cat) => (
-                  <button
-                    key={cat}
-                    onClick={() => {
-                      sound.playClick();
-                      setSelectedCategory(cat);
-                    }}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap cursor-pointer transition-colors ${
-                      selectedCategory === cat
-                        ? 'bg-sky-600 text-white shadow-sm'
-                        : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    {cat}
-                  </button>
-                ))}
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div className="flex items-center gap-1.5 p-1 bg-slate-900 border border-white/10 rounded-xl overflow-x-auto max-w-full">
+                  {WORLD_CATEGORIES.map((cat) => (
+                    <button
+                      key={cat}
+                      onClick={() => {
+                        sound.playClick();
+                        setSelectedCategory(cat);
+                      }}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap cursor-pointer transition-colors ${
+                        selectedCategory === cat
+                          ? 'bg-sky-600 text-white shadow-sm'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+
+                {(selectedCategory !== 'All' || normalizedQuery) && (
+                  <span className="text-xs text-slate-400 font-mono">
+                    Showing {filteredCatalog.length} of {WORLD_CATALOG.length}
+                  </span>
+                )}
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {[
-                {
-                  id: 'game_zombie_defense',
-                  name: 'Zombie Defense: Night Outpost',
-                  category: 'Action & Combat',
-                  rating: '★ 99%',
-                  badgeEmoji: '🧟',
-                  color: 'from-emerald-700/30 to-slate-900',
-                  desc: 'Defend the fortified desert fort from mutant block zombies! Barricade walls, mount watchtowers, and fire rocket launchers.',
-                },
-                {
-                  id: 'game_paintball_ctf',
-                  name: 'Paintball CTF: Stadium Clash',
-                  category: 'Action & Combat',
-                  rating: '★ 98%',
-                  badgeEmoji: '🚩',
-                  color: 'from-blue-600/30 to-slate-900',
-                  desc: 'Infiltrate the enemy fortress, snatch their team flag, and sprint home while dodging colorful bouncing paintball volleys!',
-                },
-                {
-                  id: 'game_kart_speedway',
-                  name: 'Kart Racing: Neon Grand Prix',
-                  category: 'Obby & Speed',
-                  rating: '★ 99%',
-                  badgeEmoji: '🏎️',
-                  color: 'from-cyan-600/30 to-slate-900',
-                  desc: 'Burn rubber across banked asphalt turns and neon boost chevrons! Race against the clock to set the fastest lap record.',
-                },
-                {
-                  id: 'game_laser_tag',
-                  name: 'Laser Tag: Cyber Matrix',
-                  category: 'Action & Combat',
-                  rating: '★ 98%',
-                  badgeEmoji: '⚡',
-                  color: 'from-purple-600/30 to-slate-900',
-                  desc: 'Glow-in-the-dark cyber battles in a neon double-decker maze with shield recharge pads and bouncing laser beams!',
-                },
-                {
-                  id: 'game_rollercoaster',
-                  name: 'Rollercoaster: Loop Paradise',
-                  category: 'Tycoon & Chill',
-                  rating: '★ 99%',
-                  badgeEmoji: '🎢',
-                  color: 'from-pink-600/30 to-slate-900',
-                  desc: 'Ride the colossal looping coaster across sky tracks, visit carnival food stalls, and launch high into the clouds!',
-                },
-                {
-                  id: 'game_prop_hunt',
-                  name: 'Prop Hunt: Warehouse Mystery',
-                  category: 'Survival & Mystery',
-                  rating: '★ 97%',
-                  badgeEmoji: '📦',
-                  color: 'from-amber-600/30 to-slate-900',
-                  desc: 'Disguise yourself as a crate, barrel, or locker and freeze in place while seeker bots search every warehouse corridor!',
-                },
-                {
-                  id: 'game_ragdoll_mayhem',
-                  name: 'Ragdoll Mayhem: Mega Stair Dismount',
-                  category: 'Tycoon & Chill',
-                  rating: '★ 99%',
-                  badgeEmoji: '🤸',
-                  color: 'from-pink-600/20 to-slate-900',
-                  desc: 'Launch your floppy ragdoll avatar down colossal bouncy stairs, giant bowling pins, and speed ramps! Score points for crazy flips.',
-                },
-                {
-                  id: 'game_floor_is_lava',
-                  name: 'The Floor is Lava: Volcano Escape',
-                  category: 'Survival & Mystery',
-                  rating: '★ 98%',
-                  badgeEmoji: '🌋',
-                  color: 'from-orange-600/20 to-slate-900',
-                  desc: 'Rising molten magma is filling the cavern! Scramble across floating couches, TVs, and air vents to reach the rescue helipad.',
-                },
-                {
-                  id: 'game_speed_run',
-                  name: 'Speed Run: Neon Galaxy',
-                  category: 'Obby & Speed',
-                  rating: '★ 99%',
-                  badgeEmoji: '⚡',
-                  color: 'from-cyan-600/20 to-slate-900',
-                  desc: 'Hit hyperspace neon speed pads, soar off cosmic launch wedges, and blaze across floating galaxy tracks.',
-                },
-                {
-                  id: 'game_murder_mansion',
-                  name: 'Mystery Murder Mansion',
-                  category: 'Survival & Mystery',
-                  rating: '★ 96%',
-                  badgeEmoji: '🗝️',
-                  color: 'from-purple-600/20 to-slate-900',
-                  desc: 'Explore an eerie 2-story haunted manor! Avoid the stalking Impostor Bot and gather 6 secret gold keys.',
-                },
-                {
-                  id: 'game_hide_seek',
-                  name: 'Hide & Seek Extreme',
-                  category: 'Survival & Mystery',
-                  rating: '★ 97%',
-                  badgeEmoji: '🫣',
-                  color: 'from-emerald-600/20 to-slate-900',
-                  desc: 'Shrink down in a giant toy workshop! Climb giant toy blocks and evade the Giant Seeker Bot searchlight.',
-                },
-                {
-                  id: 'game_obby_jump',
-                  name: 'Obby Jump: Tower of Bricks',
-                  category: 'Obby & Speed',
-                  rating: '★ 97%',
-                  badgeEmoji: '🧱',
-                  color: 'from-amber-600/20 to-slate-900',
-                  desc: 'Scale 6 challenging sky stages with moving platforms, bounce trampolines, and red hazard kill-bricks.',
-                },
-                {
-                  id: 'game_disaster_survival',
-                  name: 'Disaster Survival: Blox Island',
-                  category: 'Survival & Mystery',
-                  rating: '★ 98%',
-                  badgeEmoji: '🌪️',
-                  color: 'from-sky-600/20 to-slate-900',
-                  desc: 'Evade mega tornadoes, meteor fireballs, and crumbling buildings on a dynamic interactive island.',
-                },
-                {
-                  id: 'game_pizza_tycoon',
-                  name: 'Pizza Chef Tycoon',
-                  category: 'Tycoon & Chill',
-                  rating: '★ 95%',
-                  badgeEmoji: '🍕',
-                  color: 'from-orange-600/20 to-slate-900',
-                  desc: 'Roll dough, spread toppings, bake in the industrial oven, and deliver orders to earn coins and upgrades.',
-                },
-                {
-                  id: 'game_sword_arena',
-                  name: 'Sword Arena: Red vs Blue',
-                  category: 'Action & Combat',
-                  rating: '★ 94%',
-                  badgeEmoji: '⚔️',
-                  color: 'from-red-600/20 to-slate-900',
-                  desc: 'Duel AI bot gladiators with responsive sword slashes, lunge combos, and speed/gravity coil powerups.',
-                },
-              ]
-                .filter((card) => selectedCategory === 'All' || card.category === selectedCategory)
-                .map((card) => (
-                <div
-                  key={card.id}
+            {filteredCatalog.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-white/15 p-12 text-center flex flex-col items-center justify-center gap-3">
+                <span className="text-4xl">🔎</span>
+                <h3 className="font-bold text-white text-base">No Matching Games Found</h3>
+                <p className="text-xs text-slate-400 max-w-sm">
+                  Try another search keyword or switch back to all {WORLD_CATALOG.length} experiences.
+                </p>
+                <button
                   onClick={() => {
                     sound.playClick();
-                    const w = ALL_BUILTIN_WORLDS.find((x) => x.id === card.id)!;
-                    onPlayWorld(w);
+                    setSearchQuery('');
+                    setSelectedCategory('All');
                   }}
-                  className="group rounded-2xl bg-slate-900 border border-white/10 hover:border-sky-500/50 p-5 flex flex-col justify-between transition-all duration-200 hover:-translate-y-1 shadow-xl cursor-pointer"
+                  className="mt-1 bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold px-5 py-2 rounded-xl transition-colors cursor-pointer"
                 >
-                  <div className="flex flex-col gap-3">
-                    <div
-                      className={`h-36 rounded-xl bg-gradient-to-b ${card.color} border border-white/5 flex items-center justify-center text-5xl shadow-inner group-hover:scale-[1.02] transition-transform`}
-                    >
-                      {card.badgeEmoji}
+                  Show All {WORLD_CATALOG.length} Games
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {filteredCatalog.map((card) => (
+                  <div
+                    key={card.id}
+                    onClick={() => {
+                      sound.playClick();
+                      const w = ALL_BUILTIN_WORLDS.find((x) => x.id === card.id);
+                      if (w) onPlayWorld(w);
+                    }}
+                    className="group rounded-2xl bg-slate-900 border border-white/10 hover:border-sky-500/50 p-5 flex flex-col justify-between transition-all duration-200 hover:-translate-y-1 shadow-xl cursor-pointer"
+                  >
+                    <div className="flex flex-col gap-3">
+                      <div
+                        className={`h-36 rounded-xl bg-gradient-to-b ${card.color} border border-white/5 flex items-center justify-center text-5xl shadow-inner group-hover:scale-[1.02] transition-transform`}
+                      >
+                        {card.badgeEmoji}
+                      </div>
+
+                      <div className="flex items-center justify-between text-xs text-slate-400 font-mono">
+                        <span>{card.category}</span>
+                        <span className="text-amber-400">{card.rating}</span>
+                      </div>
+
+                      <h3 className="font-bold text-base text-white group-hover:text-sky-300 transition-colors">
+                        {card.name}
+                      </h3>
+
+                      <p className="text-xs text-slate-400 leading-relaxed line-clamp-2">
+                        {card.desc}
+                      </p>
                     </div>
 
-                    <div className="flex items-center justify-between text-xs text-slate-400 font-mono">
-                      <span>{card.category}</span>
-                      <span className="text-amber-400">{card.rating}</span>
+                    <div className="pt-4 border-t border-white/5 flex items-center justify-between mt-4">
+                      <span className="text-xs font-semibold text-sky-400 group-hover:underline">
+                        {playMode === 'online' ? 'Host / Join Room →' : 'Play Experience →'}
+                      </span>
+                      <span className="text-[11px] text-slate-500 font-mono">
+                        {playMode === 'online' ? 'Online' : 'Offline'}
+                      </span>
                     </div>
-
-                    <h3 className="font-bold text-base text-white group-hover:text-sky-300 transition-colors">
-                      {card.name}
-                    </h3>
-
-                    <p className="text-xs text-slate-400 leading-relaxed line-clamp-2">
-                      {card.desc}
-                    </p>
                   </div>
-
-                  <div className="pt-4 border-t border-white/5 flex items-center justify-between mt-4">
-                    <span className="text-xs font-semibold text-sky-400 group-hover:underline">
-                      {playMode === 'online' ? 'Host / Join Room →' : 'Play Experience →'}
-                    </span>
-                    <span className="text-[11px] text-slate-500 font-mono">
-                      {playMode === 'online' ? 'Online' : 'Offline'}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </section>
         </main>
       )}

@@ -45,7 +45,7 @@ interface SimulatedBot {
   targetPos: THREE.Vector3;
   health: number;
   maxHealth: number;
-  team: 'red' | 'blue' | 'impostor' | 'seeker' | 'zombie' | 'laser';
+  team: 'red' | 'blue' | 'impostor' | 'seeker' | 'zombie' | 'laser' | 'sumo' | 'boss' | 'soccer';
   name: string;
   attackCooldown: number;
   isGiant?: boolean;
@@ -214,6 +214,11 @@ export const GameViewport: React.FC<GameViewportProps> = ({
   const [jetpackFuel, setJetpackFuel] = useState(100);
   const [, setIsGhostActive] = useState(false);
   const isGhostRef = useRef(false);
+
+  // Mega 42-Game Expansion states
+  const [soccerScore, setSoccerScore] = useState({ red: 0, blue: 0 });
+  const [bossHealth, setBossHealth] = useState(500);
+  const [sumoKnockouts, setSumoKnockouts] = useState(0);
 
   // Online Multiplayer HUD states
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>(() =>
@@ -714,7 +719,7 @@ export const GameViewport: React.FC<GameViewportProps> = ({
         });
       }
     } else if (worldData.gameMode === 'prop_hunt') {
-      // 2 Seeker bots searching the warehouse
+      // 2 Seeker bots searching the warehouse/school
       for (let i = 0; i < 2; i++) {
         const sRig = buildCharacter({
           ...avatarConfig,
@@ -741,6 +746,204 @@ export const GameViewport: React.FC<GameViewportProps> = ({
           attackCooldown: 0,
         });
       }
+    } else if (worldData.gameMode === 'sumo') {
+      // 4 Sumo Rival Bots on the Dohyo Ring
+      const sumoColors = ['#dc2626', '#2563eb', '#16a34a', '#9333ea'];
+      for (let i = 0; i < 4; i++) {
+        const smRig = buildCharacter({
+          ...avatarConfig,
+          headColor: '#facc15',
+          torsoColor: sumoColors[i],
+          face: 'evil',
+          hat: 'viking',
+          backAccessory: 'none',
+          shirtPattern: 'stripes',
+        });
+        smRig.setEquippedItem('slap_hand');
+        scene.add(smRig.root);
+        const ang = (i / 4) * Math.PI * 2;
+        const bPos = new THREE.Vector3(Math.cos(ang) * 12, 3.0, Math.sin(ang) * 12);
+        smRig.root.position.copy(bPos);
+        bots.push({
+          rig: smRig,
+          position: bPos,
+          velocity: new THREE.Vector3(),
+          targetPos: bPos.clone(),
+          health: 400,
+          maxHealth: 400,
+          team: 'sumo',
+          name: `SumoBot_${i + 1}`,
+          attackCooldown: 0,
+        });
+      }
+    } else if (worldData.gameMode === 'boss_raid') {
+      // 1 Colossal Titan Mech Boss + 3 Cyber Guards
+      const bossRig = buildCharacter({
+        ...avatarConfig,
+        headColor: '#991b1b',
+        torsoColor: '#1e293b',
+        face: 'cyborg',
+        hat: 'valkyrie',
+        backAccessory: 'wings',
+        shirtPattern: 'armor',
+      });
+      bossRig.setEquippedItem('laser_katana');
+      bossRig.root.scale.set(2.8, 2.8, 2.8);
+      scene.add(bossRig.root);
+      const bossPos = new THREE.Vector3(0, 4.0, -18);
+      bossRig.root.position.copy(bossPos);
+      bots.push({
+        rig: bossRig,
+        position: bossPos,
+        velocity: new THREE.Vector3(),
+        targetPos: bossPos.clone(),
+        health: 500,
+        maxHealth: 500,
+        team: 'boss',
+        name: 'Titan Mech Boss',
+        attackCooldown: 0,
+        isGiant: true,
+      });
+
+      for (let i = 0; i < 3; i++) {
+        const gRig = buildCharacter({
+          ...avatarConfig,
+          headColor: '#0f172a',
+          torsoColor: '#dc2626',
+          face: 'cyborg',
+          hat: 'halo',
+          backAccessory: 'none',
+          shirtPattern: 'cyber',
+        });
+        gRig.setEquippedItem('sword');
+        scene.add(gRig.root);
+        const bPos = new THREE.Vector3((i - 1) * 14, 2.0, -10);
+        gRig.root.position.copy(bPos);
+        bots.push({
+          rig: gRig,
+          position: bPos,
+          velocity: new THREE.Vector3(),
+          targetPos: bPos.clone(),
+          health: 100,
+          maxHealth: 100,
+          team: 'laser',
+          name: `MechGuard_${i + 1}`,
+          attackCooldown: 0,
+        });
+      }
+    } else if (worldData.gameMode === 'moon_gravity') {
+      // 4 Orbital Cyber Bots in Zero-G
+      const colors = ['#06b6d4', '#a855f7', '#38bdf8', '#f472b6'];
+      for (let i = 0; i < 4; i++) {
+        const mgRig = buildCharacter({
+          ...avatarConfig,
+          headColor: '#e2e8f0',
+          torsoColor: colors[i],
+          face: 'cyborg',
+          hat: 'halo',
+          backAccessory: 'jetpack',
+          shirtPattern: 'cyber',
+        });
+        mgRig.setEquippedItem('laser_katana');
+        scene.add(mgRig.root);
+        const ang = (i / 4) * Math.PI * 2;
+        const bPos = new THREE.Vector3(Math.cos(ang) * 18, 2.5, Math.sin(ang) * 18);
+        mgRig.root.position.copy(bPos);
+        bots.push({
+          rig: mgRig,
+          position: bPos,
+          velocity: new THREE.Vector3(),
+          targetPos: bPos.clone(),
+          health: 100,
+          maxHealth: 100,
+          team: 'laser',
+          name: `AstroBot_${i + 1}`,
+          attackCooldown: 0,
+        });
+      }
+    } else if (worldData.gameMode === 'soccer') {
+      // 2 Playful Soccer Bots
+      const sTeams = [
+        { name: 'Red_Striker', color: '#dc2626', pos: [0, 2, 16] },
+        { name: 'Blue_Keeper', color: '#2563eb', pos: [0, 2, -24] },
+      ];
+      sTeams.forEach((sb) => {
+        const sRig = buildCharacter({
+          ...avatarConfig,
+          headColor: '#facc15',
+          torsoColor: sb.color,
+          face: 'chill',
+          hat: 'cap',
+          backAccessory: 'none',
+          shirtPattern: 'stripes',
+        });
+        scene.add(sRig.root);
+        const bPos = new THREE.Vector3(...sb.pos);
+        sRig.root.position.copy(bPos);
+        bots.push({
+          rig: sRig,
+          position: bPos,
+          velocity: new THREE.Vector3(),
+          targetPos: bPos.clone(),
+          health: 999,
+          maxHealth: 999,
+          team: 'soccer',
+          name: sb.name,
+          attackCooldown: 0,
+        });
+      });
+    }
+
+    // Track timers & coin orientation cleanup
+    let isDisposed = false;
+    const activeTimers: number[] = [];
+    const safeTimeout = (fn: () => void, ms: number) => {
+      const id = window.setTimeout(() => {
+        if (!isDisposed) fn();
+      }, ms);
+      activeTimers.push(id);
+      return id;
+    };
+
+    // Orient coin pickups upright
+    worldRenderer.renderedParts.forEach((rp) => {
+      if (rp.partData.metadata?.isCoinPickup) {
+        rp.mesh.rotation.x = Math.PI / 2;
+      }
+    });
+
+    // Interactive 3D Soccer Ball
+    let soccerBallMesh: THREE.Mesh | null = null;
+    const soccerBallPos = new THREE.Vector3(0, 2.55, 0);
+    const soccerBallVel = new THREE.Vector3(0, 0, 0);
+    let soccerGoalCooldown = 0;
+
+    if (worldData.gameMode === 'soccer') {
+      const ballCanvas = document.createElement('canvas');
+      ballCanvas.width = 128;
+      ballCanvas.height = 128;
+      const bctx = ballCanvas.getContext('2d');
+      if (bctx) {
+        bctx.fillStyle = '#ffffff';
+        bctx.fillRect(0, 0, 128, 128);
+        bctx.fillStyle = '#0f172a';
+        for (let row = 0; row < 4; row++) {
+          for (let col = 0; col < 4; col++) {
+            if ((row + col) % 2 === 0) {
+              bctx.fillRect(col * 32 + 4, row * 32 + 4, 24, 24);
+            }
+          }
+        }
+      }
+      const ballTex = new THREE.CanvasTexture(ballCanvas);
+      ballTex.colorSpace = THREE.SRGBColorSpace;
+      soccerBallMesh = new THREE.Mesh(
+        new THREE.SphereGeometry(1.5, 20, 16),
+        new THREE.MeshStandardMaterial({ map: ballTex, roughness: 0.4, metalness: 0.1 })
+      );
+      soccerBallMesh.position.copy(soccerBallPos);
+      soccerBallMesh.castShadow = true;
+      scene.add(soccerBallMesh);
     }
 
     // Rollercoaster Train
@@ -782,15 +985,18 @@ export const GameViewport: React.FC<GameViewportProps> = ({
     scene.add(tornadoGroup);
     tornadoGroup.visible = worldData.gameMode === 'disaster';
 
-    // Rising Lava Mesh for Floor is Lava mode
+    // Rising Lava / Flood Mesh for Floor is Lava & Tsunami Flood Escape
+    const isFloodWorld = worldData.id === 'game_flood_escape';
     let currentLavaY = 0;
     const lavaMesh = new THREE.Mesh(
       new THREE.BoxGeometry(120, 2, 120),
       new THREE.MeshStandardMaterial({
-        color: 0xdc2626,
-        emissive: 0xf97316,
-        emissiveIntensity: 0.95,
-        roughness: 0.3,
+        color: isFloodWorld ? 0x0284c7 : 0xdc2626,
+        emissive: isFloodWorld ? 0x0ea5e9 : 0xf97316,
+        emissiveIntensity: isFloodWorld ? 0.55 : 0.95,
+        roughness: isFloodWorld ? 0.15 : 0.3,
+        transparent: isFloodWorld,
+        opacity: isFloodWorld ? 0.82 : 1.0,
       })
     );
     lavaMesh.position.set(0, 0, 0);
@@ -812,7 +1018,176 @@ export const GameViewport: React.FC<GameViewportProps> = ({
         setLavaHeight(0);
       }
       setGameMessage('OOF! Respawned at checkpoint.');
-      window.setTimeout(() => setGameMessage(''), 2500);
+      safeTimeout(() => setGameMessage(''), 2500);
+    };
+
+    // Unified Bot Defeat / Knockout Handler (Melee, Paintball, Rockets, Sumo Ring-outs)
+    const handleBotDefeated = (bot: SimulatedBot, verb = 'Eliminated') => {
+      sound.playCoin();
+      sound.playOof();
+      bot.health = 0;
+      bot.rig.root.visible = false;
+      confetti({ particleCount: bot.team === 'boss' ? 140 : 40, spread: 80, origin: { y: 0.6 } });
+
+      if (worldData.gameMode === 'zombie_defense') {
+        setCoins((c) => {
+          const nc = c + 25;
+          StorageManager.updatePlayerStats({
+            coins: nc,
+            zombiesKilled: (StorageManager.getPlayerStats().zombiesKilled || 0) + 1,
+          });
+          return nc;
+        });
+        setZombiesKilledCount((zc) => {
+          const next = zc + 1;
+          if (next % 6 === 0) {
+            setZombieWave((w) => {
+              const nw = w + 1;
+              sound.playFanfare();
+              setGameMessage(`WAVE ${nw} INCOMING! 🧟 High alert!`);
+              return nw;
+            });
+          }
+          return next;
+        });
+        setKillFeed((kf) => [`${verb} ${bot.name}! 🧟 +25 Coins`, ...kf.slice(0, 3)]);
+        recordMissionAction('zombies', 1, 'zombie_defense');
+        if (isOnlineRoom) multiplayerClient.sendScoreEvent('zombie_kill');
+        safeTimeout(() => {
+          bot.health = 80;
+          const ang = Math.random() * Math.PI * 2;
+          bot.position.set(Math.cos(ang) * 32, 1.5, Math.sin(ang) * 32);
+          bot.velocity.set(0, 0, 0);
+          bot.rig.root.position.copy(bot.position);
+          bot.rig.root.visible = true;
+        }, 5000);
+      } else if (worldData.gameMode === 'laser_tag' || worldData.gameMode === 'moon_gravity') {
+        setCoins((c) => {
+          const nc = c + 35;
+          StorageManager.updatePlayerStats({
+            coins: nc,
+            laserTagHits: (StorageManager.getPlayerStats().laserTagHits || 0) + 1,
+          });
+          return nc;
+        });
+        setLaserHits((h) => h + 1);
+        setKillFeed((kf) => [`Tagged ${bot.name}! ⚡ +35 Coins`, ...kf.slice(0, 3)]);
+        recordMissionAction('lasers', 1, 'laser_tag');
+        if (isOnlineRoom) multiplayerClient.sendScoreEvent('point', { amount: 1 });
+        safeTimeout(() => {
+          bot.health = 100;
+          bot.position.set((Math.random() - 0.5) * 30, 2.5, (Math.random() - 0.5) * 30);
+          bot.velocity.set(0, 0, 0);
+          bot.rig.root.position.copy(bot.position);
+          bot.rig.root.visible = true;
+        }, 4000);
+      } else if (worldData.gameMode === 'sumo') {
+        setSumoKnockouts((k) => k + 1);
+        setCoins((c) => {
+          const nc = c + 40;
+          StorageManager.updatePlayerStats({ coins: nc });
+          return nc;
+        });
+        setKillFeed((kf) => [`Knocked out ${bot.name}! 🥋 +40 Coins`, ...kf.slice(0, 3)]);
+        if (isOnlineRoom) multiplayerClient.sendScoreEvent('point', { amount: 1 });
+        safeTimeout(() => {
+          bot.health = 400;
+          bot.position.set((Math.random() - 0.5) * 10, 4.0, (Math.random() - 0.5) * 10);
+          bot.velocity.set(0, 0, 0);
+          bot.rig.root.position.copy(bot.position);
+          bot.rig.root.visible = true;
+        }, 3500);
+      } else if (worldData.gameMode === 'boss_raid') {
+        if (bot.team === 'boss') {
+          sound.playFanfare();
+          setBossHealth(0);
+          setGameMessage('TITAN MECH DEFEATED! 🤖🏆 +300 BloxCoins!');
+          setKillFeed((kf) => ['DESTROYED TITAN MECH BOSS! +300 Coins', ...kf.slice(0, 3)]);
+          setCoins((c) => {
+            const nc = c + 300;
+            StorageManager.updatePlayerStats({
+              coins: nc,
+              bossesDefeated: (StorageManager.getPlayerStats().bossesDefeated || 0) + 1,
+            });
+            return nc;
+          });
+          if (isOnlineRoom) {
+            multiplayerClient.sendScoreEvent('point', {
+              amount: 5,
+              announcement: `${playerNickname} destroyed the Titan Mech Boss!`,
+            });
+          }
+          safeTimeout(() => {
+            bot.health = 500;
+            setBossHealth(500);
+            bot.position.set(0, 4.0, -18);
+            bot.velocity.set(0, 0, 0);
+            bot.rig.root.position.copy(bot.position);
+            bot.rig.root.visible = true;
+            setGameMessage('A new Titan Mech Boss has entered the Colosseum! 🤖');
+            safeTimeout(() => setGameMessage(''), 2500);
+          }, 10000);
+        } else {
+          setCoins((c) => {
+            const nc = c + 30;
+            StorageManager.updatePlayerStats({ coins: nc });
+            return nc;
+          });
+          setKillFeed((kf) => [`${verb} ${bot.name}! +30 Coins`, ...kf.slice(0, 3)]);
+          safeTimeout(() => {
+            bot.health = 100;
+            bot.position.set((Math.random() - 0.5) * 28, 2.0, -14);
+            bot.velocity.set(0, 0, 0);
+            bot.rig.root.position.copy(bot.position);
+            bot.rig.root.visible = true;
+          }, 5000);
+        }
+      } else if (worldData.gameMode === 'paintball_ctf') {
+        setCoins((c) => {
+          const nc = c + 30;
+          StorageManager.updatePlayerStats({ coins: nc });
+          return nc;
+        });
+        setKillFeed((kf) => [`Splatted ${bot.name}! 🔫 +30 Coins`, ...kf.slice(0, 3)]);
+        safeTimeout(() => {
+          bot.health = 100;
+          const spawnX = bot.team === 'red' ? -26 : 26;
+          bot.position.set(spawnX, 2, (Math.random() - 0.5) * 16);
+          bot.velocity.set(0, 0, 0);
+          bot.rig.root.position.copy(bot.position);
+          bot.rig.root.visible = true;
+        }, 5000);
+      } else if (worldData.gameMode === 'sword') {
+        setSwordKills((k) => {
+          const newKills = k + 1;
+          StorageManager.updatePlayerStats({ swordKills: newKills });
+          return newKills;
+        });
+        setKillFeed((kf) => [`${verb} ${bot.name}! ⚔️ +50 Coins`, ...kf.slice(0, 3)]);
+        setCoins((c) => {
+          const nc = c + 50;
+          StorageManager.updatePlayerStats({ coins: nc });
+          return nc;
+        });
+        safeTimeout(() => {
+          bot.health = 100;
+          bot.position.set((Math.random() - 0.5) * 32, 4, (Math.random() - 0.5) * 32);
+          bot.velocity.set(0, 0, 0);
+          bot.rig.root.position.copy(bot.position);
+          bot.rig.root.visible = true;
+        }, 5000);
+      } else if (worldData.gameMode === 'murder') {
+        setGameMessage('VICTORY! You defeated the Impostor! 🏆');
+        confetti({ particleCount: 100, spread: 80, origin: { y: 0.6 } });
+        setCoins((c) => {
+          const nc = c + 150;
+          StorageManager.updatePlayerStats({
+            coins: nc,
+            mansionEscapes: (StorageManager.getPlayerStats().mansionEscapes || 0) + 1,
+          });
+          return nc;
+        });
+      }
     };
 
     // Primary Action (Sword slash, slap, paintball shot, banana peel, or rubber chicken)
@@ -966,6 +1341,20 @@ export const GameViewport: React.FC<GameViewportProps> = ({
         );
       }
 
+      // Power-kick Soccer Ball when attacking near it
+      if (worldData.gameMode === 'soccer' && soccerBallMesh) {
+        const distBall = playerPos.distanceTo(soccerBallPos);
+        if (distBall < 5.5) {
+          const kickDir = soccerBallPos.clone().sub(playerPos);
+          kickDir.y = 0;
+          if (kickDir.lengthSq() < 0.01) kickDir.set(0, 0, 1);
+          kickDir.normalize();
+          soccerBallVel.addScaledVector(kickDir, 34);
+          soccerBallVel.y = Math.max(soccerBallVel.y, 11);
+          sound.playBounce();
+        }
+      }
+
       // Check hit on bots
       const attackRange =
         currentItem === 'slap_hand' || currentItem === 'rubber_chicken'
@@ -979,8 +1368,9 @@ export const GameViewport: React.FC<GameViewportProps> = ({
       );
 
       bots.forEach((bot) => {
-        if (bot.health <= 0) return;
-        if (attackBox.containsPoint(bot.position)) {
+        if (bot.health <= 0 || bot.team === 'soccer') return;
+        const hitDist = bot.isGiant ? 6.0 : attackRange * 0.65;
+        if (attackBox.containsPoint(bot.position) || bot.position.distanceTo(playerPos) < hitDist) {
           const damage =
             currentItem === 'slap_hand'
               ? 20
@@ -990,6 +1380,9 @@ export const GameViewport: React.FC<GameViewportProps> = ({
               ? 55
               : 35;
           bot.health -= damage;
+          if (bot.team === 'boss') {
+            setBossHealth(Math.max(0, Math.round(bot.health)));
+          }
           if (currentItem === 'rubber_chicken') {
             sound.playBonk();
           } else if (currentItem === 'laser_katana') {
@@ -998,117 +1391,18 @@ export const GameViewport: React.FC<GameViewportProps> = ({
             sound.playHit();
           }
 
-          // Knockback
+          // Knockback (boosted in Sumo Royale!)
+          const sumoBoost = worldData.gameMode === 'sumo' ? 1.55 : 1.0;
           const knockScalar =
-            currentItem === 'slap_hand' ? 32 : currentItem === 'rubber_chicken' ? 38 : 18;
-          const knock = bot.position.clone().sub(playerPos).normalize().multiplyScalar(knockScalar);
-          knock.y = currentItem === 'rubber_chicken' ? 14 : 8;
+            (currentItem === 'slap_hand' ? 32 : currentItem === 'rubber_chicken' ? 38 : 18) * sumoBoost;
+          const knock = bot.position.clone().sub(playerPos);
+          if (knock.lengthSq() < 0.01) knock.set(0, 0, 1);
+          knock.normalize().multiplyScalar(knockScalar);
+          knock.y = currentItem === 'rubber_chicken' ? 14 : 9;
           bot.velocity.add(knock);
 
           if (bot.health <= 0) {
-            sound.playCoin();
-            sound.playOof();
-            bot.rig.root.visible = false;
-            confetti({ particleCount: 40, spread: 70, origin: { y: 0.6 } });
-
-            if (worldData.gameMode === 'zombie_defense') {
-              setCoins((c) => {
-                const nc = c + 25;
-                StorageManager.updatePlayerStats({
-                  coins: nc,
-                  zombiesKilled: (StorageManager.getPlayerStats().zombiesKilled || 0) + 1,
-                });
-                return nc;
-              });
-              setZombiesKilledCount((zc) => {
-                const next = zc + 1;
-                if (next % 6 === 0) {
-                  setZombieWave((w) => {
-                    const nw = w + 1;
-                    sound.playFanfare();
-                    setGameMessage(`WAVE ${nw} INCOMING! 🧟 High alert!`);
-                    return nw;
-                  });
-                }
-                return next;
-              });
-              setKillFeed((kf) => [`Eliminated ${bot.name}! 🧟 +25 Coins`, ...kf.slice(0, 3)]);
-              recordMissionAction('zombies', 1, 'zombie_defense');
-              if (isOnlineRoom) {
-                multiplayerClient.sendScoreEvent('zombie_kill');
-              }
-              window.setTimeout(() => {
-                bot.health = 80;
-                const ang = Math.random() * Math.PI * 2;
-                bot.position.set(Math.cos(ang) * 32, 1.5, Math.sin(ang) * 32);
-                bot.rig.root.position.copy(bot.position);
-                bot.rig.root.visible = true;
-              }, 5000);
-            } else if (worldData.gameMode === 'laser_tag') {
-              setCoins((c) => {
-                const nc = c + 35;
-                StorageManager.updatePlayerStats({
-                  coins: nc,
-                  laserTagHits: (StorageManager.getPlayerStats().laserTagHits || 0) + 1,
-                });
-                return nc;
-              });
-              setLaserHits((h) => h + 1);
-              setKillFeed((kf) => [`Tagged ${bot.name}! ⚡ +35 Coins`, ...kf.slice(0, 3)]);
-              recordMissionAction('lasers', 1, 'laser_tag');
-              if (isOnlineRoom) {
-                multiplayerClient.sendScoreEvent('point', { amount: 1 });
-              }
-              window.setTimeout(() => {
-                bot.health = 100;
-                bot.position.set((Math.random() - 0.5) * 35, 1.5, (Math.random() - 0.5) * 35);
-                bot.rig.root.position.copy(bot.position);
-                bot.rig.root.visible = true;
-              }, 4000);
-            } else if (worldData.gameMode === 'paintball_ctf') {
-              setCoins((c) => {
-                const nc = c + 30;
-                StorageManager.updatePlayerStats({ coins: nc });
-                return nc;
-              });
-              setKillFeed((kf) => [`Splatted ${bot.name}! 🔫 +30 Coins`, ...kf.slice(0, 3)]);
-              window.setTimeout(() => {
-                bot.health = 100;
-                const spawnX = bot.team === 'red' ? -26 : 26;
-                bot.position.set(spawnX, 2, (Math.random() - 0.5) * 16);
-                bot.rig.root.position.copy(bot.position);
-                bot.rig.root.visible = true;
-              }, 5000);
-            } else if (worldData.gameMode === 'sword') {
-              setSwordKills((k) => {
-                const newKills = k + 1;
-                StorageManager.updatePlayerStats({ swordKills: newKills });
-                return newKills;
-              });
-              setKillFeed((kf) => [`You eliminated ${bot.name}! ⚔️`, ...kf.slice(0, 3)]);
-              setCoins((c) => {
-                const nc = c + 50;
-                StorageManager.updatePlayerStats({ coins: nc });
-                return nc;
-              });
-              window.setTimeout(() => {
-                bot.health = 100;
-                bot.position.set((Math.random() - 0.5) * 40, 3, (Math.random() - 0.5) * 40);
-                bot.rig.root.position.copy(bot.position);
-                bot.rig.root.visible = true;
-              }, 5000);
-            } else if (worldData.gameMode === 'murder') {
-              setGameMessage('VICTORY! You defeated the Impostor! 🏆');
-              confetti({ particleCount: 100, spread: 80, origin: { y: 0.6 } });
-              setCoins((c) => {
-                const nc = c + 150;
-                StorageManager.updatePlayerStats({
-                  coins: nc,
-                  mansionEscapes: (StorageManager.getPlayerStats().mansionEscapes || 0) + 1,
-                });
-                return nc;
-              });
-            }
+            handleBotDefeated(bot, 'Eliminated');
           }
         }
       });
@@ -1510,8 +1804,8 @@ export const GameViewport: React.FC<GameViewportProps> = ({
         isGrounded = false;
       }
 
-      // Gravity (floaty low gravity when Gravity Coil is held)
-      const currentGravity = isGravityCoil ? 22 : 48;
+      // Gravity (floaty low gravity in Moon Gravity mode or when Gravity Coil is held)
+      const currentGravity = worldData.gameMode === 'moon_gravity' ? 20 : isGravityCoil ? 22 : 48;
       playerVelocity.y -= currentGravity * delta;
 
       // Integrate
@@ -1686,6 +1980,116 @@ export const GameViewport: React.FC<GameViewportProps> = ({
         setKartLapTimer((t) => t + delta);
       }
 
+      // Universal Spinning Golden Coin Pickups across all 42 worlds
+      worldRenderer.renderedParts.forEach((rp) => {
+        if (rp.partData.metadata?.isCoinPickup && rp.mesh.visible) {
+          rp.mesh.rotation.z += delta * 2.8;
+          if (playerPos.distanceTo(rp.mesh.position) < 2.6) {
+            rp.mesh.visible = false;
+            sound.playCoin();
+            setCoins((c) => {
+              const nc = c + 15;
+              StorageManager.updatePlayerStats({ coins: nc });
+              return nc;
+            });
+            recordMissionAction('coins', 1);
+            setGameMessage('+15 BloxCoins! 🪙');
+            safeTimeout(() => setGameMessage(''), 1400);
+            safeTimeout(() => {
+              rp.mesh.visible = true;
+            }, 20000);
+          }
+        }
+      });
+
+      // BrickBall Soccer Physics & Goal Scoring
+      if (worldData.gameMode === 'soccer' && soccerBallMesh) {
+        if (soccerGoalCooldown > 0) soccerGoalCooldown -= delta;
+
+        // Player dribble / kick impulse
+        const pDist = playerPos.distanceTo(soccerBallPos);
+        if (pDist < 2.6) {
+          const kickDir = soccerBallPos.clone().sub(playerPos);
+          kickDir.y = 0;
+          if (kickDir.lengthSq() < 0.001) kickDir.set(0, 0, 1);
+          kickDir.normalize();
+          const kickPower = Math.max(18, playerVelocity.length() * 1.45);
+          soccerBallVel.x = kickDir.x * kickPower;
+          soccerBallVel.z = kickDir.z * kickPower;
+          soccerBallVel.y = Math.max(soccerBallVel.y, 5.5);
+          sound.playBounce();
+        }
+
+        // Integrate ball motion
+        soccerBallVel.y -= 32 * delta;
+        soccerBallPos.addScaledVector(soccerBallVel, delta);
+
+        // Floor bounce & turf friction
+        if (soccerBallPos.y < 2.55) {
+          soccerBallPos.y = 2.55;
+          if (soccerBallVel.y < -2) {
+            soccerBallVel.y *= -0.55;
+          } else {
+            soccerBallVel.y = 0;
+          }
+          soccerBallVel.x *= Math.pow(0.45, delta);
+          soccerBallVel.z *= Math.pow(0.45, delta);
+        }
+
+        // Sideline wall bounce
+        if (soccerBallPos.x > 26.5) {
+          soccerBallPos.x = 26.5;
+          soccerBallVel.x *= -0.75;
+        } else if (soccerBallPos.x < -26.5) {
+          soccerBallPos.x = -26.5;
+          soccerBallVel.x *= -0.75;
+        }
+
+        // Goal Detection vs Endline bounce
+        if (soccerBallPos.z > 36.5 && Math.abs(soccerBallPos.x) < 9 && soccerGoalCooldown <= 0) {
+          soccerGoalCooldown = 2.5;
+          sound.playFanfare();
+          sound.playCoin();
+          confetti({ particleCount: 110, spread: 90, origin: { y: 0.6 } });
+          setSoccerScore((s) => ({ ...s, blue: s.blue + 1 }));
+          setCoins((c) => {
+            const nc = c + 50;
+            StorageManager.updatePlayerStats({
+              coins: nc,
+              soccerGoals: (StorageManager.getPlayerStats().soccerGoals || 0) + 1,
+            });
+            return nc;
+          });
+          setGameMessage('GOOOAAAL! BLUE SCORED ON RED! ⚽🎉 +50 Coins!');
+          soccerBallPos.set(0, 4.5, 0);
+          soccerBallVel.set(0, 0, 0);
+        } else if (soccerBallPos.z < -36.5 && Math.abs(soccerBallPos.x) < 9 && soccerGoalCooldown <= 0) {
+          soccerGoalCooldown = 2.5;
+          sound.playFanfare();
+          sound.playCoin();
+          confetti({ particleCount: 110, spread: 90, origin: { y: 0.6 } });
+          setSoccerScore((s) => ({ ...s, red: s.red + 1 }));
+          setCoins((c) => {
+            const nc = c + 50;
+            StorageManager.updatePlayerStats({
+              coins: nc,
+              soccerGoals: (StorageManager.getPlayerStats().soccerGoals || 0) + 1,
+            });
+            return nc;
+          });
+          setGameMessage('GOOOAAAL! RED SCORED ON BLUE! ⚽🎉 +50 Coins!');
+          soccerBallPos.set(0, 4.5, 0);
+          soccerBallVel.set(0, 0, 0);
+        } else if (Math.abs(soccerBallPos.z) > 38.5) {
+          soccerBallPos.z = Math.sign(soccerBallPos.z) * 38.5;
+          soccerBallVel.z *= -0.75;
+        }
+
+        soccerBallMesh.position.copy(soccerBallPos);
+        soccerBallMesh.rotation.x += soccerBallVel.z * delta * 0.4;
+        soccerBallMesh.rotation.z -= soccerBallVel.x * delta * 0.4;
+      }
+
       // Rockets update & detonation
       for (let i = rockets.length - 1; i >= 0; i--) {
         const r = rockets[i];
@@ -1711,40 +2115,27 @@ export const GameViewport: React.FC<GameViewportProps> = ({
 
         if (hit) {
           sound.playRocketBoom();
+          // AOE blast on soccer ball
+          if (worldData.gameMode === 'soccer' && soccerBallMesh && soccerBallPos.distanceTo(r.mesh.position) < 10) {
+            const bPush = soccerBallPos.clone().sub(r.mesh.position).normalize().multiplyScalar(38);
+            bPush.y = 14;
+            soccerBallVel.add(bPush);
+          }
           // AOE blast on bots
           bots.forEach((b) => {
-            if (b.health <= 0) return;
+            if (b.health <= 0 || b.team === 'soccer') return;
             const dist = b.position.distanceTo(r.mesh.position);
-            if (dist < 12) {
+            if (dist < (b.isGiant ? 15 : 12)) {
               b.health -= 75;
-              const push = b.position.clone().sub(r.mesh.position).normalize().multiplyScalar(32);
+              if (b.team === 'boss') setBossHealth(Math.max(0, Math.round(b.health)));
+              const sumoBoost = worldData.gameMode === 'sumo' ? 1.5 : 1.0;
+              const push = b.position.clone().sub(r.mesh.position);
+              if (push.lengthSq() < 0.01) push.set(0, 0, 1);
+              push.normalize().multiplyScalar(32 * sumoBoost);
               push.y = 12;
               b.velocity.add(push);
               if (b.health <= 0) {
-                sound.playCoin();
-                sound.playOof();
-                b.rig.root.visible = false;
-                confetti({ particleCount: 40, spread: 70, origin: { y: 0.6 } });
-                if (worldData.gameMode === 'zombie_defense') {
-                  setCoins((c) => {
-                    const nc = c + 25;
-                    StorageManager.updatePlayerStats({
-                      coins: nc,
-                      zombiesKilled: (StorageManager.getPlayerStats().zombiesKilled || 0) + 1,
-                    });
-                    return nc;
-                  });
-                  recordMissionAction('zombies', 1, 'zombie_defense');
-                  if (isOnlineRoom) {
-                    multiplayerClient.sendScoreEvent('zombie_kill');
-                  }
-                  window.setTimeout(() => {
-                    b.health = 80;
-                    b.position.set((Math.random() - 0.5) * 40, 1.5, (Math.random() - 0.5) * 40);
-                    b.rig.root.position.copy(b.position);
-                    b.rig.root.visible = true;
-                  }, 5000);
-                }
+                handleBotDefeated(b, 'Rocketed');
               }
             }
           });
@@ -1924,8 +2315,31 @@ export const GameViewport: React.FC<GameViewportProps> = ({
 
         const distToPlayer = bot.position.distanceTo(playerPos);
 
-        if (bot.team === 'seeker') {
-          // Seeker patrols playroom and chases if close
+        if (bot.team === 'soccer') {
+          // Soccer bots dribble toward the BrickBall
+          const distBall = bot.position.distanceTo(soccerBallPos);
+          const dir = soccerBallPos.clone().sub(bot.position);
+          dir.y = 0;
+          if (dir.lengthSq() > 0.01) {
+            dir.normalize();
+            bot.velocity.x = dir.x * 11;
+            bot.velocity.z = dir.z * 11;
+            bot.rig.root.rotation.y = Math.atan2(dir.x, dir.z);
+          }
+          if (distBall < 2.6) {
+            const kick = new THREE.Vector3(
+              (Math.random() - 0.5) * 8,
+              5,
+              bot.name.includes('Red') ? 18 : -18
+            );
+            soccerBallVel.add(kick);
+          }
+        } else if (isGhostRef.current) {
+          // Player is invisible with Ghost Cloak! Bots wander aimlessly
+          bot.velocity.x = Math.sin(clock.getElapsedTime() + bot.name.length) * 5;
+          bot.velocity.z = Math.cos(clock.getElapsedTime() + bot.name.length) * 5;
+        } else if (bot.team === 'seeker') {
+          // Seeker patrols playroom/school and chases if close
           if (distToPlayer < 28) {
             const dir = playerPos.clone().sub(bot.position);
             dir.y = 0;
@@ -1969,8 +2383,53 @@ export const GameViewport: React.FC<GameViewportProps> = ({
             bot.velocity.x = Math.sin(clock.getElapsedTime() * 0.5) * 6;
             bot.velocity.z = Math.cos(clock.getElapsedTime() * 0.5) * 6;
           }
+        } else if (bot.team === 'boss') {
+          // Giant Titan Mech Boss
+          const dir = playerPos.clone().sub(bot.position);
+          dir.y = 0;
+          if (dir.lengthSq() > 0.01) {
+            dir.normalize();
+            bot.velocity.x = dir.x * 10.5;
+            bot.velocity.z = dir.z * 10.5;
+            bot.rig.root.rotation.y = Math.atan2(dir.x, dir.z);
+          }
+          if (distToPlayer < 7.5) {
+            bot.attackCooldown -= delta;
+            if (bot.attackCooldown <= 0) {
+              bot.attackCooldown = 1.6;
+              sound.playRocketBoom();
+              currentHealth -= 28;
+              playerVelocity.y = 14;
+              playerVelocity.addScaledVector(dir, 22);
+              setHealth(Math.max(0, Math.round(currentHealth)));
+              if (currentHealth <= 0) respawnPlayer();
+            }
+          }
+        } else if (bot.team === 'sumo') {
+          // Sumo bots lunge & try to knock player off the Dohyo Ring!
+          const dir = playerPos.clone().sub(bot.position);
+          dir.y = 0;
+          if (dir.lengthSq() > 0.01) {
+            dir.normalize();
+            bot.velocity.x = THREE.MathUtils.damp(bot.velocity.x, dir.x * 11, 5, delta);
+            bot.velocity.z = THREE.MathUtils.damp(bot.velocity.z, dir.z * 11, 5, delta);
+            bot.rig.root.rotation.y = Math.atan2(dir.x, dir.z);
+          }
+          if (distToPlayer < 4.5) {
+            bot.attackCooldown -= delta;
+            if (bot.attackCooldown <= 0) {
+              bot.attackCooldown = 1.1;
+              sound.playHit();
+              const knock = playerPos.clone().sub(bot.position);
+              knock.y = 0;
+              if (knock.lengthSq() < 0.01) knock.set(0, 0, 1);
+              knock.normalize().multiplyScalar(22);
+              playerVelocity.add(knock);
+              playerVelocity.y = Math.max(playerVelocity.y, 10);
+            }
+          }
         } else {
-          // Red / Blue Knights
+          // Red / Blue Knights / Zombies / CyberBots
           if (distToPlayer < 24) {
             const dir = playerPos.clone().sub(bot.position);
             dir.y = 0;
@@ -1999,9 +2458,14 @@ export const GameViewport: React.FC<GameViewportProps> = ({
         bot.velocity.y -= 40 * delta;
         bot.position.addScaledVector(bot.velocity, delta);
 
-        if (bot.position.y < (bot.isGiant ? 3.0 : 1.5)) {
+        // In Sumo mode, bots outside the 22-unit ring radius fall off into the abyss!
+        const offSumoRing = worldData.gameMode === 'sumo' && Math.hypot(bot.position.x, bot.position.z) > 22.5;
+        if (!offSumoRing && bot.position.y < (bot.isGiant ? 3.0 : 1.5)) {
           bot.position.y = bot.isGiant ? 3.0 : 1.5;
           bot.velocity.y = 0;
+        }
+        if (worldData.gameMode === 'sumo' && bot.position.y < -8) {
+          handleBotDefeated(bot, 'Knocked out');
         }
 
         bot.rig.root.position.copy(bot.position);
@@ -2020,35 +2484,27 @@ export const GameViewport: React.FC<GameViewportProps> = ({
           pb.velocity.y *= -0.5;
         }
 
+        // Check soccer ball hit by paintball
+        if (worldData.gameMode === 'soccer' && soccerBallMesh && pb.mesh.position.distanceTo(soccerBallPos) < 2.2) {
+          const push = pb.velocity.clone().normalize().multiplyScalar(14);
+          push.y = 5;
+          soccerBallVel.add(push);
+          pb.life = 0;
+          sound.playBounce();
+        }
+
         // Check bot hit
         bots.forEach((b) => {
-          if (b.health > 0 && pb.mesh.position.distanceTo(b.position) < (b.isGiant ? 4 : 2)) {
+          if (b.health > 0 && b.team !== 'soccer' && pb.mesh.position.distanceTo(b.position) < (b.isGiant ? 4.5 : 2)) {
             b.health -= 35;
+            if (b.team === 'boss') setBossHealth(Math.max(0, Math.round(b.health)));
             sound.playHit();
             pb.life = 0;
+            const knock = pb.velocity.clone().normalize().multiplyScalar(worldData.gameMode === 'sumo' ? 24 : 10);
+            knock.y = 6;
+            b.velocity.add(knock);
             if (b.health <= 0) {
-              sound.playOof();
-              sound.playCoin();
-              b.rig.root.visible = false;
-              if (worldData.gameMode === 'sword') {
-                setSwordKills((k) => {
-                  const newKills = k + 1;
-                  StorageManager.updatePlayerStats({ swordKills: newKills });
-                  return newKills;
-                });
-                setKillFeed((kf) => [`Paintballed ${b.name}! 🎯`, ...kf.slice(0, 3)]);
-                setCoins((c) => {
-                  const nc = c + 50;
-                  StorageManager.updatePlayerStats({ coins: nc });
-                  return nc;
-                });
-                window.setTimeout(() => {
-                  b.health = 100;
-                  b.position.set((Math.random() - 0.5) * 40, 3, (Math.random() - 0.5) * 40);
-                  b.rig.root.position.copy(b.position);
-                  b.rig.root.visible = true;
-                }, 5000);
-              }
+              handleBotDefeated(b, 'Paintballed');
             }
           }
         });
@@ -2250,6 +2706,8 @@ export const GameViewport: React.FC<GameViewportProps> = ({
     else frameId = requestAnimationFrame(tick);
 
     return () => {
+      isDisposed = true;
+      activeTimers.forEach((id) => clearTimeout(id));
       cancelAnimationFrame(frameId);
       clearTimeout(frameId);
       unsubMultiplayer();
@@ -2277,6 +2735,13 @@ export const GameViewport: React.FC<GameViewportProps> = ({
         scene.remove(p.mesh);
         p.mesh.geometry.dispose();
       });
+      rockets.forEach((r) => {
+        scene.remove(r.mesh);
+      });
+      if (soccerBallMesh) {
+        scene.remove(soccerBallMesh);
+        soccerBallMesh.geometry.dispose();
+      }
       bananaPeels.forEach((bp) => {
         scene.remove(bp.mesh);
       });
@@ -2464,10 +2929,12 @@ export const GameViewport: React.FC<GameViewportProps> = ({
 
           {worldData.gameMode === 'floor_lava' && (
             <div className="flex items-center gap-4 text-xs font-mono">
-              <span className="text-orange-500 font-bold">🌋 LAVA HEIGHT: {lavaHeight}m</span>
+              <span className={worldData.id === 'game_flood_escape' ? 'text-cyan-400 font-bold' : 'text-orange-500 font-bold'}>
+                {worldData.id === 'game_flood_escape' ? `🌊 FLOOD LEVEL: ${lavaHeight}m` : `🌋 LAVA HEIGHT: ${lavaHeight}m`}
+              </span>
               <span className="text-slate-400">·</span>
               <span className={isLavaEscaped ? 'text-emerald-400 font-bold' : 'text-red-400 font-bold animate-pulse'}>
-                {isLavaEscaped ? 'RESCUED! 🚁' : 'CLIMB UP! 🔥'}
+                {isLavaEscaped ? 'RESCUED! 🚁' : 'CLIMB UP!'}
               </span>
             </div>
           )}
@@ -2522,6 +2989,43 @@ export const GameViewport: React.FC<GameViewportProps> = ({
           {worldData.gameMode === 'laser_tag' && (
             <div className="flex items-center gap-3 text-xs font-mono">
               <span className="text-cyan-400 font-bold">⚡ LASER MATRIX</span>
+              <span className="text-slate-400">·</span>
+              <span className="text-pink-400 font-bold">HITS: {laserHits}</span>
+            </div>
+          )}
+
+          {worldData.gameMode === 'sumo' && (
+            <div className="flex items-center gap-3 text-xs font-mono">
+              <span className="text-amber-400 font-bold">🥋 SUMO RING</span>
+              <span className="text-slate-400">·</span>
+              <span className="text-emerald-400 font-bold">KNOCKOUTS: {sumoKnockouts}</span>
+            </div>
+          )}
+
+          {worldData.gameMode === 'boss_raid' && (
+            <div className="flex items-center gap-3 text-xs font-mono">
+              <span className="text-red-400 font-bold">🤖 TITAN HP:</span>
+              <div className="w-20 h-2.5 bg-slate-800 rounded-full overflow-hidden border border-red-500/40">
+                <div
+                  className="h-full bg-red-500 transition-all duration-200"
+                  style={{ width: `${(bossHealth / 500) * 100}%` }}
+                />
+              </div>
+              <span className="text-amber-300 font-bold">{bossHealth}</span>
+            </div>
+          )}
+
+          {worldData.gameMode === 'soccer' && (
+            <div className="flex items-center gap-3 text-xs font-mono">
+              <span className="text-red-400 font-bold">⚽ RED: {soccerScore.red}</span>
+              <span className="text-slate-400">-</span>
+              <span className="text-blue-400 font-bold">BLUE: {soccerScore.blue}</span>
+            </div>
+          )}
+
+          {worldData.gameMode === 'moon_gravity' && (
+            <div className="flex items-center gap-3 text-xs font-mono">
+              <span className="text-cyan-300 font-bold">🛸 ZERO-G ORBIT</span>
               <span className="text-slate-400">·</span>
               <span className="text-pink-400 font-bold">HITS: {laserHits}</span>
             </div>

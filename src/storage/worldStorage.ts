@@ -56,6 +56,8 @@ export const DEFAULT_PLAYER_STATS: PlayerStats = {
   propsFound: 0,
   kartBestTime: 0,
   laserTagHits: 0,
+  bossesDefeated: 0,
+  soccerGoals: 0,
 };
 
 export class StorageManager {

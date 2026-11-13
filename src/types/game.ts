@@ -60,7 +60,11 @@ export type GameModeType =
   | 'rollercoaster'
   | 'prop_hunt'
   | 'kart_speedway'
-  | 'laser_tag';
+  | 'laser_tag'
+  | 'sumo'
+  | 'boss_raid'
+  | 'soccer'
+  | 'moon_gravity';
 
 export interface BrickWorldData {
   id: string;
@@ -189,6 +193,8 @@ export interface PlayerStats {
   propsFound: number;
   kartBestTime: number;
   laserTagHits: number;
+  bossesDefeated?: number;
+  soccerGoals?: number;
 }
 
 export type PlayMode = 'offline' | 'online';
