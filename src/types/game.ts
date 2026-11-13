@@ -191,3 +191,46 @@ export interface PlayerStats {
   laserTagHits: number;
 }
 
+export type PlayMode = 'offline' | 'online';
+
+export interface OnlinePlayerState {
+  id: string;
+  nickname: string;
+  avatarConfig: AvatarConfig;
+  position: [number, number, number];
+  rotationY: number;
+  velocity: [number, number, number];
+  equippedItem: string;
+  emote: string;
+  isRagdolling: boolean;
+  isGhost: boolean;
+  propDisguise: string;
+  health: number;
+  score: number;
+  team: 'red' | 'blue' | 'none';
+}
+
+export interface ChatMessage {
+  id: string;
+  senderId: string;
+  senderName: string;
+  text: string;
+  timestamp: number;
+  isSystem?: boolean;
+}
+
+export interface SharedRoomScores {
+  ctfRed: number;
+  ctfBlue: number;
+  zombieWave: number;
+  zombiesKilled: number;
+}
+
+export interface RoomSessionInfo {
+  roomCode: string;
+  playerId: string;
+  worldData: BrickWorldData;
+  players: OnlinePlayerState[];
+  scores: SharedRoomScores;
+  chatMessages: ChatMessage[];
+}

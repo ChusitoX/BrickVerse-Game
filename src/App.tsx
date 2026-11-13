@@ -4,12 +4,14 @@
  */
 
 import { useState, useEffect } from 'react';
-import { AvatarConfig, BrickWorldData, PlayerStats, UserSettings } from './types/game';
+import { AvatarConfig, BrickWorldData, PlayerStats, PlayMode, RoomSessionInfo, UserSettings } from './types/game';
 import { StorageManager } from './storage/worldStorage';
 import { MainMenu } from './components/MainMenu';
 import { GameViewport } from './engine/GameViewport';
 import { AvatarEditor } from './components/AvatarEditor';
 import { WorldStudio } from './studio/WorldStudio';
+import { RoomSelectorModal } from './components/RoomSelectorModal';
+import { multiplayerClient } from './multiplayer/multiplayerClient';
 import { sound } from './audio/soundEngine';
 import { recordMissionAction } from './utils/dailyMissions';
 
@@ -19,6 +21,13 @@ export default function App() {
   const [appMode, setAppMode] = useState<AppMode>('menu');
   const [activeWorld, setActiveWorld] = useState<BrickWorldData | null>(null);
   const [isStudioTestPlay, setIsStudioTestPlay] = useState<boolean>(false);
+
+  // Play Mode & Online Multiplayer Session
+  const [playMode, setPlayMode] = useState<PlayMode>(() => StorageManager.getPlayMode());
+  const [playerNickname, setPlayerNickname] = useState<string>(() => StorageManager.getPlayerNickname());
+  const [roomModalOpen, setRoomModalOpen] = useState(false);
+  const [pendingOnlineWorld, setPendingOnlineWorld] = useState<BrickWorldData | null>(null);
+  const [activeRoomSession, setActiveRoomSession] = useState<RoomSessionInfo | null>(null);
 
   // Persistent user data
   const [avatarConfig, setAvatarConfig] = useState<AvatarConfig>(() => StorageManager.getAvatarConfig());
@@ -31,8 +40,21 @@ export default function App() {
     sound.setMusicEnabled(userSettings.musicEnabled);
   }, [userSettings]);
 
-  // Handler: Launch Game
-  const handlePlayWorld = (world: BrickWorldData) => {
+  const handleChangePlayMode = (mode: PlayMode) => {
+    setPlayMode(mode);
+    StorageManager.savePlayMode(mode);
+  };
+
+  const handleChangeNickname = (name: string) => {
+    setPlayerNickname(name);
+    StorageManager.savePlayerNickname(name);
+  };
+
+  const launchOfflineSolo = (world: BrickWorldData) => {
+    multiplayerClient.leaveRoom();
+    setActiveRoomSession(null);
+    setRoomModalOpen(false);
+    setPendingOnlineWorld(null);
     setActiveWorld(world);
     setIsStudioTestPlay(false);
     setAppMode('game');
@@ -40,15 +62,45 @@ export default function App() {
     setPlayerStats(StorageManager.updatePlayerStats({ gamesPlayed: playerStats.gamesPlayed + 1 }));
   };
 
+  // Handler: Launch Game (respects Offline vs Online mode)
+  const handlePlayWorld = (world: BrickWorldData) => {
+    if (playMode === 'online') {
+      setPendingOnlineWorld(world);
+      setRoomModalOpen(true);
+      return;
+    }
+    launchOfflineSolo(world);
+  };
+
+  const handleOpenJoinRoomModal = () => {
+    setPendingOnlineWorld(null);
+    setRoomModalOpen(true);
+  };
+
+  const handleJoinedRoom = (session: RoomSessionInfo) => {
+    setRoomModalOpen(false);
+    setPendingOnlineWorld(null);
+    setActiveRoomSession(session);
+    setActiveWorld(session.worldData);
+    setIsStudioTestPlay(false);
+    setAppMode('game');
+    recordMissionAction('play_game', 1, session.worldData.gameMode);
+    setPlayerStats(StorageManager.updatePlayerStats({ gamesPlayed: playerStats.gamesPlayed + 1 }));
+  };
+
   // Handler: Enter Studio
   const handleOpenStudio = (world: BrickWorldData) => {
+    multiplayerClient.leaveRoom();
+    setActiveRoomSession(null);
     setActiveWorld(world);
     setIsStudioTestPlay(false);
     setAppMode('studio');
   };
 
-  // Handler: Test Play from Studio
+  // Handler: Test Play from Studio (always immediate solo test play)
   const handleStudioTestPlay = (world: BrickWorldData) => {
+    multiplayerClient.leaveRoom();
+    setActiveRoomSession(null);
     setActiveWorld(world);
     setIsStudioTestPlay(true);
     setAppMode('game');
@@ -56,6 +108,8 @@ export default function App() {
 
   // Handler: Exit Game Viewport
   const handleExitGame = () => {
+    multiplayerClient.leaveRoom();
+    setActiveRoomSession(null);
     setPlayerStats(StorageManager.getPlayerStats());
     if (isStudioTestPlay && activeWorld) {
       setAppMode('studio');
@@ -63,6 +117,13 @@ export default function App() {
       setAppMode('menu');
       setActiveWorld(null);
     }
+  };
+
+  // Handler: Switch from Online session to Offline Singleplayer in-game
+  const handleSwitchToOffline = () => {
+    multiplayerClient.leaveRoom();
+    setActiveRoomSession(null);
+    handleChangePlayMode('offline');
   };
 
   // Handler: Update Avatar
@@ -87,6 +148,11 @@ export default function App() {
           userSettings={userSettings}
           onUpdateSettings={handleUpdateSettings}
           playerStats={playerStats}
+          playMode={playMode}
+          onChangePlayMode={handleChangePlayMode}
+          playerNickname={playerNickname}
+          onChangeNickname={handleChangeNickname}
+          onOpenJoinRoom={handleOpenJoinRoomModal}
         />
       )}
 
@@ -98,6 +164,10 @@ export default function App() {
           onExitToMenu={handleExitGame}
           onOpenAvatar={() => setAppMode('avatar')}
           isStudioTestPlay={isStudioTestPlay}
+          playMode={activeRoomSession ? 'online' : 'offline'}
+          playerNickname={playerNickname}
+          roomSession={activeRoomSession}
+          onSwitchToOffline={handleSwitchToOffline}
         />
       )}
 
@@ -116,9 +186,26 @@ export default function App() {
         <AvatarEditor
           currentConfig={avatarConfig}
           onSave={handleSaveAvatar}
-          onBack={() => setAppMode(activeWorld && isStudioTestPlay ? 'studio' : 'menu')}
+          onBack={() => setAppMode(activeWorld && isStudioTestPlay ? 'studio' : activeWorld ? 'game' : 'menu')}
         />
       )}
+
+      <RoomSelectorModal
+        isOpen={roomModalOpen}
+        selectedWorld={pendingOnlineWorld}
+        playerNickname={playerNickname}
+        onChangeNickname={handleChangeNickname}
+        avatarConfig={avatarConfig}
+        onJoinedRoom={handleJoinedRoom}
+        onPlayOfflineFallback={(w) => {
+          handleChangePlayMode('offline');
+          launchOfflineSolo(w);
+        }}
+        onClose={() => {
+          setRoomModalOpen(false);
+          setPendingOnlineWorld(null);
+        }}
+      />
     </div>
   );
 }

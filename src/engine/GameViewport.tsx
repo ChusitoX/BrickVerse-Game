@@ -7,7 +7,15 @@ import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import confetti from 'canvas-confetti';
-import { AvatarConfig, BrickWorldData, UserSettings } from '../types/game';
+import {
+  AvatarConfig,
+  BrickWorldData,
+  ChatMessage,
+  OnlinePlayerState,
+  PlayMode,
+  RoomSessionInfo,
+  UserSettings,
+} from '../types/game';
 import { buildCharacter, CharacterRig, EmoteType, EquippedItemType } from './characterBuilder';
 import { WorldRenderer } from './worldRenderer';
 import { CameraController } from './cameraController';
@@ -15,6 +23,7 @@ import { sound } from '../audio/soundEngine';
 import { StorageManager } from '../storage/worldStorage';
 import { DailyMissionsModal } from '../components/DailyMissionsModal';
 import { recordMissionAction } from '../utils/dailyMissions';
+import { ConnectionStatus, multiplayerClient } from '../multiplayer/multiplayerClient';
 
 interface GameViewportProps {
   worldData: BrickWorldData;
@@ -23,6 +32,10 @@ interface GameViewportProps {
   onExitToMenu: () => void;
   onOpenAvatar?: () => void;
   isStudioTestPlay?: boolean;
+  playMode?: PlayMode;
+  playerNickname?: string;
+  roomSession?: RoomSessionInfo | null;
+  onSwitchToOffline?: () => void;
 }
 
 interface SimulatedBot {
@@ -42,12 +55,67 @@ interface PaintballProjectile {
   mesh: THREE.Mesh;
   velocity: THREE.Vector3;
   life: number;
+  isLocal?: boolean;
 }
 
 interface RocketProjectile {
   mesh: THREE.Group;
   velocity: THREE.Vector3;
   life: number;
+  isLocal?: boolean;
+}
+
+interface RemotePeer {
+  id: string;
+  nickname: string;
+  team: 'red' | 'blue' | 'none';
+  rig: CharacterRig;
+  position: THREE.Vector3;
+  targetPosition: THREE.Vector3;
+  targetRotationY: number;
+  velocity: THREE.Vector3;
+  equippedItem: string;
+  emote: string;
+  isRagdolling: boolean;
+  isGhost: boolean;
+  health: number;
+  score: number;
+}
+
+function createNameTagSprite(nickname: string, team: 'red' | 'blue' | 'none'): THREE.Sprite {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 64;
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const bgColor =
+      team === 'red'
+        ? 'rgba(185, 28, 28, 0.85)'
+        : team === 'blue'
+        ? 'rgba(29, 78, 216, 0.85)'
+        : 'rgba(15, 23, 42, 0.82)';
+    ctx.fillStyle = bgColor;
+    ctx.beginPath();
+    ctx.roundRect(16, 10, 224, 44, 14);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 24px "Plus Jakarta Sans", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(nickname.slice(0, 16), 128, 32);
+  }
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
+  const sprite = new THREE.Sprite(mat);
+  sprite.position.set(0, 4.9, 0);
+  sprite.scale.set(4.2, 1.05, 1);
+  return sprite;
 }
 
 export const GameViewport: React.FC<GameViewportProps> = ({
@@ -57,8 +125,13 @@ export const GameViewport: React.FC<GameViewportProps> = ({
   onExitToMenu,
   onOpenAvatar,
   isStudioTestPlay = false,
+  playMode = 'offline',
+  playerNickname = 'Player',
+  roomSession = null,
+  onSwitchToOffline,
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
+  const isOnlineRoom = playMode === 'online' && !!roomSession;
 
   // Common HUD states
   const [health, setHealth] = useState(100);
@@ -126,6 +199,7 @@ export const GameViewport: React.FC<GameViewportProps> = ({
 
   // Mega Expansion: Prop Hunt states
   const [propDisguise, setPropDisguise] = useState<'none' | 'crate' | 'barrel' | 'locker'>('none');
+  const propDisguiseRef = useRef<'none' | 'crate' | 'barrel' | 'locker'>('none');
 
   // Mega Expansion: Kart Speedway states
   const [kartLap, setKartLap] = useState(1);
@@ -140,6 +214,20 @@ export const GameViewport: React.FC<GameViewportProps> = ({
   const [jetpackFuel, setJetpackFuel] = useState(100);
   const [, setIsGhostActive] = useState(false);
   const isGhostRef = useRef(false);
+
+  // Online Multiplayer HUD states
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>(() =>
+    isOnlineRoom ? multiplayerClient.getStatus() : 'disconnected'
+  );
+  const [roomPlayers, setRoomPlayers] = useState<OnlinePlayerState[]>(() => roomSession?.players || []);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => roomSession?.chatMessages || []);
+  const [chatInput, setChatInput] = useState('');
+  const [isChatOpen, setIsChatOpen] = useState(isOnlineRoom && !userSettings.showTouchControls);
+  const [showPlayersDrawer, setShowPlayersDrawer] = useState(false);
+  const [codeCopied, setCodeCopied] = useState(false);
+  const chatInputRef = useRef<HTMLInputElement>(null);
+  const chatLogRef = useRef<HTMLDivElement>(null);
+  const isChatFocusedRef = useRef(false);
 
   // Mobile touch controls state
   const touchJoystickRef = useRef<{ active: boolean; dx: number; dy: number }>({ active: false, dx: 0, dy: 0 });
@@ -157,6 +245,36 @@ export const GameViewport: React.FC<GameViewportProps> = ({
   const currentItemRef = useRef<EquippedItemType>(
     worldData.gameMode === 'sword' ? 'sword' : 'none'
   );
+
+  useEffect(() => {
+    if (!isOnlineRoom) return;
+    const unsubStatus = multiplayerClient.onStatus(setConnectionStatus);
+    return () => {
+      unsubStatus();
+    };
+  }, [isOnlineRoom]);
+
+  useEffect(() => {
+    if (chatLogRef.current) {
+      chatLogRef.current.scrollTop = chatLogRef.current.scrollHeight;
+    }
+  }, [chatMessages, isChatOpen]);
+
+  const handleCopyRoomCode = () => {
+    if (!roomSession?.roomCode) return;
+    sound.playClick();
+    navigator.clipboard?.writeText(roomSession.roomCode).catch(() => {});
+    setCodeCopied(true);
+    window.setTimeout(() => setCodeCopied(false), 1800);
+  };
+
+  const handleSendChat = (e?: React.FormEvent) => {
+    e?.preventDefault();
+    const cleaned = chatInput.trim();
+    if (!cleaned || !isOnlineRoom) return;
+    multiplayerClient.sendChat(cleaned);
+    setChatInput('');
+  };
 
   // Toggle Ragdoll Tumble
   const toggleRagdoll = () => {
@@ -264,6 +382,11 @@ export const GameViewport: React.FC<GameViewportProps> = ({
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     container.appendChild(renderer.domElement);
 
+    const onContextLost = (e: Event) => {
+      e.preventDefault();
+    };
+    renderer.domElement.addEventListener('webglcontextlost', onContextLost);
+
     // 2. Scene & Lighting
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(worldData.environment.skyColor);
@@ -329,6 +452,75 @@ export const GameViewport: React.FC<GameViewportProps> = ({
     let currentHealth = 100;
     let speedMultiplier = 1.0;
     let gravityMultiplier = 1.0;
+
+    // Remote Multiplayer Peers Registry
+    const remotePeers = new Map<string, RemotePeer>();
+
+    const spawnOrUpdatePeer = (p: OnlinePlayerState) => {
+      if (!roomSession || p.id === roomSession.playerId) return;
+      let existing = remotePeers.get(p.id);
+      if (!existing) {
+        const peerRig = buildCharacter({ ...avatarConfig, ...(p.avatarConfig || {}) });
+        const tag = createNameTagSprite(p.nickname, p.team);
+        peerRig.root.add(tag);
+        if (p.equippedItem && p.equippedItem !== 'none') {
+          peerRig.setEquippedItem(p.equippedItem as EquippedItemType);
+        }
+        const startPos = new THREE.Vector3(p.position[0] || 0, p.position[1] || 2, p.position[2] || 0);
+        peerRig.root.position.copy(startPos);
+        peerRig.root.rotation.y = p.rotationY || 0;
+        scene.add(peerRig.root);
+
+        existing = {
+          id: p.id,
+          nickname: p.nickname,
+          team: p.team || 'none',
+          rig: peerRig,
+          position: startPos.clone(),
+          targetPosition: startPos.clone(),
+          targetRotationY: p.rotationY || 0,
+          velocity: new THREE.Vector3(p.velocity?.[0] || 0, p.velocity?.[1] || 0, p.velocity?.[2] || 0),
+          equippedItem: p.equippedItem || 'none',
+          emote: p.emote || 'none',
+          isRagdolling: !!p.isRagdolling,
+          isGhost: !!p.isGhost,
+          health: p.health ?? 100,
+          score: p.score ?? 0,
+        };
+        remotePeers.set(p.id, existing);
+      } else {
+        existing.targetPosition.set(p.position[0] || 0, p.position[1] || 2, p.position[2] || 0);
+        existing.targetRotationY = p.rotationY || 0;
+        existing.velocity.set(p.velocity?.[0] || 0, p.velocity?.[1] || 0, p.velocity?.[2] || 0);
+        if (p.equippedItem !== existing.equippedItem) {
+          existing.equippedItem = p.equippedItem;
+          existing.rig.setEquippedItem((p.equippedItem || 'none') as EquippedItemType);
+        }
+        if (p.emote && p.emote !== 'none' && p.emote !== existing.emote) {
+          existing.rig.playEmote(p.emote as EmoteType);
+        }
+        existing.emote = p.emote || 'none';
+        existing.isRagdolling = !!p.isRagdolling;
+        existing.isGhost = !!p.isGhost;
+        existing.rig.root.visible = !existing.isGhost;
+        existing.health = p.health ?? 100;
+        existing.score = p.score ?? 0;
+      }
+    };
+
+    const removePeer = (playerId: string) => {
+      const peer = remotePeers.get(playerId);
+      if (peer) {
+        scene.remove(peer.rig.root);
+        remotePeers.delete(playerId);
+      }
+    };
+
+    if (isOnlineRoom && roomSession) {
+      roomSession.players.forEach((p) => spawnOrUpdatePeer(p));
+      setCtfScore({ red: roomSession.scores.ctfRed, blue: roomSession.scores.ctfBlue });
+      setZombieWave(roomSession.scores.zombieWave || 1);
+    }
 
     // Start background music
     if (userSettings.musicEnabled) {
@@ -674,9 +866,17 @@ export const GameViewport: React.FC<GameViewportProps> = ({
         scene.add(rGroup);
         rockets.push({
           mesh: rGroup,
-          velocity: dir.multiplyScalar(42),
+          velocity: dir.clone().multiplyScalar(42),
           life: 3.5,
+          isLocal: true,
         });
+        if (isOnlineRoom) {
+          multiplayerClient.sendAttack(
+            'rocket_launcher',
+            [rGroup.position.x, rGroup.position.y, rGroup.position.z],
+            [dir.x, dir.y, dir.z]
+          );
+        }
         return;
       }
 
@@ -737,15 +937,33 @@ export const GameViewport: React.FC<GameViewportProps> = ({
         camera.getWorldDirection(dir);
         paintballs.push({
           mesh: pMesh,
-          velocity: dir.multiplyScalar(45),
+          velocity: dir.clone().multiplyScalar(45),
           life: 3.0,
+          isLocal: true,
         });
         scene.add(pMesh);
+        if (isOnlineRoom) {
+          multiplayerClient.sendAttack(
+            'paintball_gun',
+            [pMesh.position.x, pMesh.position.y, pMesh.position.z],
+            [dir.x, dir.y, dir.z]
+          );
+        }
         return;
       } else if (currentItem === 'slap_hand') {
         sound.playHit();
       } else {
         sound.playSlash();
+      }
+
+      if (isOnlineRoom) {
+        const dir = new THREE.Vector3();
+        camera.getWorldDirection(dir);
+        multiplayerClient.sendAttack(
+          currentItem,
+          [playerPos.x, playerPos.y + 1.5, playerPos.z],
+          [dir.x, dir.y, dir.z]
+        );
       }
 
       // Check hit on bots
@@ -816,6 +1034,9 @@ export const GameViewport: React.FC<GameViewportProps> = ({
               });
               setKillFeed((kf) => [`Eliminated ${bot.name}! 🧟 +25 Coins`, ...kf.slice(0, 3)]);
               recordMissionAction('zombies', 1, 'zombie_defense');
+              if (isOnlineRoom) {
+                multiplayerClient.sendScoreEvent('zombie_kill');
+              }
               window.setTimeout(() => {
                 bot.health = 80;
                 const ang = Math.random() * Math.PI * 2;
@@ -835,6 +1056,9 @@ export const GameViewport: React.FC<GameViewportProps> = ({
               setLaserHits((h) => h + 1);
               setKillFeed((kf) => [`Tagged ${bot.name}! ⚡ +35 Coins`, ...kf.slice(0, 3)]);
               recordMissionAction('lasers', 1, 'laser_tag');
+              if (isOnlineRoom) {
+                multiplayerClient.sendScoreEvent('point', { amount: 1 });
+              }
               window.setTimeout(() => {
                 bot.health = 100;
                 bot.position.set((Math.random() - 0.5) * 35, 1.5, (Math.random() - 0.5) * 35);
@@ -888,6 +1112,31 @@ export const GameViewport: React.FC<GameViewportProps> = ({
           }
         }
       });
+
+      // Check melee hits on online remote players
+      if (isOnlineRoom) {
+        remotePeers.forEach((peer) => {
+          if (peer.health <= 0) return;
+          if (attackBox.containsPoint(peer.position)) {
+            const damage =
+              currentItem === 'slap_hand'
+                ? 20
+                : currentItem === 'rubber_chicken'
+                ? 25
+                : currentItem === 'laser_katana'
+                ? 55
+                : 35;
+            const knockScalar =
+              currentItem === 'slap_hand' ? 32 : currentItem === 'rubber_chicken' ? 38 : 18;
+            const knock = peer.position.clone().sub(playerPos);
+            if (knock.lengthSq() < 0.01) knock.set(0, 0, 1);
+            knock.normalize().multiplyScalar(knockScalar);
+            knock.y = currentItem === 'rubber_chicken' ? 14 : 8;
+            sound.playHit();
+            multiplayerClient.sendHit(peer.id, damage, [knock.x, knock.y, knock.z], currentItem);
+          }
+        });
+      }
     };
 
     // Tycoon station interaction
@@ -974,16 +1223,19 @@ export const GameViewport: React.FC<GameViewportProps> = ({
         if (distCrate < 6.0) {
           sound.playDisguisePop();
           setPropDisguise('crate');
+          propDisguiseRef.current = 'crate';
           setGameMessage('Disguised as: Wooden Crate! 📦 Stand still to fool seekers!');
           recordMissionAction('props', 1, 'prop_hunt');
         } else if (distBarrel < 6.0) {
           sound.playDisguisePop();
           setPropDisguise('barrel');
+          propDisguiseRef.current = 'barrel';
           setGameMessage('Disguised as: Bio Barrel! 🛢️ Stand still to fool seekers!');
           recordMissionAction('props', 1, 'prop_hunt');
         } else if (distLocker < 6.0) {
           sound.playDisguisePop();
           setPropDisguise('locker');
+          propDisguiseRef.current = 'locker';
           setGameMessage('Disguised as: Metal Locker! 🚪 Stand still to fool seekers!');
           recordMissionAction('props', 1, 'prop_hunt');
         }
@@ -1060,6 +1312,21 @@ export const GameViewport: React.FC<GameViewportProps> = ({
 
     // Keyboard handlers
     const onKeyDown = (e: KeyboardEvent) => {
+      if (isChatFocusedRef.current) {
+        if (e.code === 'Escape') {
+          chatInputRef.current?.blur();
+          isChatFocusedRef.current = false;
+        }
+        return;
+      }
+
+      if (e.code === 'KeyT' && isOnlineRoom) {
+        e.preventDefault();
+        setIsChatOpen(true);
+        window.setTimeout(() => chatInputRef.current?.focus(), 30);
+        return;
+      }
+
       keysPressed.current[e.code] = true;
 
       if (e.code === 'KeyE') {
@@ -1341,6 +1608,12 @@ export const GameViewport: React.FC<GameViewportProps> = ({
               return nc;
             });
             recordMissionAction('laps', 1, 'kart_speedway');
+            if (isOnlineRoom) {
+              multiplayerClient.sendScoreEvent('point', {
+                amount: 1,
+                announcement: `${playerNickname} finished a lap in ${lapTime.toFixed(1)}s!`,
+              });
+            }
           }
         } else if (worldData.gameMode === 'ragdoll' && col.standingOnCheckpoint === 100) {
           sound.playCheckpoint();
@@ -1402,6 +1675,9 @@ export const GameViewport: React.FC<GameViewportProps> = ({
             return nc;
           });
           recordMissionAction('ctf', 1, 'paintball_ctf');
+          if (isOnlineRoom) {
+            multiplayerClient.sendScoreEvent('ctf_capture', { team: 'blue' });
+          }
         }
       }
 
@@ -1425,10 +1701,17 @@ export const GameViewport: React.FC<GameViewportProps> = ({
             }
           }
         }
+        if (!hit && isOnlineRoom && r.isLocal) {
+          remotePeers.forEach((peer) => {
+            if (!hit && peer.health > 0 && r.mesh.position.distanceTo(peer.position) < 3.2) {
+              hit = true;
+            }
+          });
+        }
 
         if (hit) {
           sound.playRocketBoom();
-          // AOE blast
+          // AOE blast on bots
           bots.forEach((b) => {
             if (b.health <= 0) return;
             const dist = b.position.distanceTo(r.mesh.position);
@@ -1452,6 +1735,9 @@ export const GameViewport: React.FC<GameViewportProps> = ({
                     return nc;
                   });
                   recordMissionAction('zombies', 1, 'zombie_defense');
+                  if (isOnlineRoom) {
+                    multiplayerClient.sendScoreEvent('zombie_kill');
+                  }
                   window.setTimeout(() => {
                     b.health = 80;
                     b.position.set((Math.random() - 0.5) * 40, 1.5, (Math.random() - 0.5) * 40);
@@ -1462,6 +1748,20 @@ export const GameViewport: React.FC<GameViewportProps> = ({
               }
             }
           });
+          // AOE blast on remote players
+          if (isOnlineRoom && r.isLocal) {
+            remotePeers.forEach((peer) => {
+              if (peer.health <= 0) return;
+              const dist = peer.position.distanceTo(r.mesh.position);
+              if (dist < 12) {
+                const push = peer.position.clone().sub(r.mesh.position);
+                if (push.lengthSq() < 0.01) push.set(0, 0, 1);
+                push.normalize().multiplyScalar(32);
+                push.y = 12;
+                multiplayerClient.sendHit(peer.id, 65, [push.x, push.y, push.z], 'rocket_launcher');
+              }
+            });
+          }
           scene.remove(r.mesh);
           rockets.splice(i, 1);
         }
@@ -1753,6 +2053,19 @@ export const GameViewport: React.FC<GameViewportProps> = ({
           }
         });
 
+        // Check remote peer hit
+        if (isOnlineRoom && pb.isLocal && pb.life > 0) {
+          remotePeers.forEach((peer) => {
+            if (peer.health > 0 && pb.mesh.position.distanceTo(peer.position) < 2.2) {
+              sound.playHit();
+              pb.life = 0;
+              const knock = pb.velocity.clone().normalize().multiplyScalar(14);
+              knock.y = 6;
+              multiplayerClient.sendHit(peer.id, 30, [knock.x, knock.y, knock.z], 'paintball_gun');
+            }
+          });
+        }
+
         if (pb.life <= 0) {
           scene.remove(pb.mesh);
           pb.mesh.geometry.dispose();
@@ -1795,6 +2108,47 @@ export const GameViewport: React.FC<GameViewportProps> = ({
         }
       }
 
+      // Interpolate remote multiplayer avatars & stream local state (~20Hz)
+      if (isOnlineRoom) {
+        remotePeers.forEach((peer) => {
+          const alpha = Math.min(1, delta * 14);
+          peer.position.lerp(peer.targetPosition, alpha);
+          peer.rig.root.position.copy(peer.position);
+
+          // Shortest-angle rotation interpolation
+          let diff = peer.targetRotationY - peer.rig.root.rotation.y;
+          while (diff > Math.PI) diff -= Math.PI * 2;
+          while (diff < -Math.PI) diff += Math.PI * 2;
+          peer.rig.root.rotation.y += diff * alpha;
+
+          const peerGrounded = Math.abs(peer.velocity.y) < 0.8;
+          peer.rig.updateAnimation(
+            peer.velocity,
+            peerGrounded,
+            !peerGrounded && peer.velocity.y > 0.5,
+            0,
+            delta,
+            peer.isRagdolling
+          );
+        });
+
+        networkSyncAccumulator += delta;
+        if (networkSyncAccumulator >= 0.05) {
+          networkSyncAccumulator = 0;
+          multiplayerClient.sendPlayerState({
+            position: [playerPos.x, playerPos.y, playerPos.z],
+            rotationY: playerRig.root.rotation.y,
+            velocity: [playerVelocity.x, playerVelocity.y, playerVelocity.z],
+            equippedItem: currentItemRef.current,
+            emote: playerRig.currentEmote,
+            isRagdolling: isRagdollingRef.current,
+            isGhost: isGhostRef.current,
+            propDisguise: propDisguiseRef.current,
+            health: Math.round(currentHealth),
+          });
+        }
+      }
+
       // Obby timer
       if (worldData.gameMode === 'obby' && !isObbyComplete) {
         timerAccumulator += delta;
@@ -1807,13 +2161,100 @@ export const GameViewport: React.FC<GameViewportProps> = ({
       else frameId = requestAnimationFrame(tick);
     };
 
+    let networkSyncAccumulator = 0;
+
+    // Subscribe to real-time WebSocket multiplayer events
+    const unsubMultiplayer = isOnlineRoom
+      ? multiplayerClient.onEvent((evt) => {
+          if (evt.type === 'room:joined') {
+            evt.players.forEach((p) => spawnOrUpdatePeer(p));
+            setRoomPlayers(evt.players);
+            setChatMessages(evt.chatMessages);
+            setCtfScore({ red: evt.scores.ctfRed, blue: evt.scores.ctfBlue });
+            setZombieWave(evt.scores.zombieWave || 1);
+          } else if (evt.type === 'player:joined') {
+            spawnOrUpdatePeer(evt.player);
+            setRoomPlayers((prev) =>
+              prev.some((x) => x.id === evt.player.id) ? prev : [...prev, evt.player]
+            );
+          } else if (evt.type === 'player:state') {
+            spawnOrUpdatePeer(evt.player);
+          } else if (evt.type === 'player:left') {
+            removePeer(evt.playerId);
+            setRoomPlayers((prev) => prev.filter((x) => x.id !== evt.playerId));
+          } else if (evt.type === 'combat:attack') {
+            const origin = new THREE.Vector3(...evt.origin);
+            const dir = new THREE.Vector3(...evt.dir).normalize();
+            if (evt.item === 'paintball_gun') {
+              sound.playPaintballShot();
+              const pMesh = new THREE.Mesh(
+                new THREE.SphereGeometry(0.3, 8, 8),
+                new THREE.MeshStandardMaterial({ color: 0x06b6d4, emissive: 0xffffff, emissiveIntensity: 0.2 })
+              );
+              pMesh.position.copy(origin);
+              scene.add(pMesh);
+              paintballs.push({ mesh: pMesh, velocity: dir.multiplyScalar(45), life: 3.0, isLocal: false });
+            } else if (evt.item === 'rocket_launcher') {
+              sound.playRocketBoom();
+              const rGroup = new THREE.Group();
+              rGroup.position.copy(origin);
+              const rBody = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.18, 0.18, 1.2, 8),
+                new THREE.MeshStandardMaterial({ color: 0xef4444, metalness: 0.8 })
+              );
+              rBody.rotation.x = Math.PI / 2;
+              rGroup.add(rBody);
+              scene.add(rGroup);
+              rockets.push({ mesh: rGroup, velocity: dir.multiplyScalar(42), life: 3.5, isLocal: false });
+            } else if (evt.item === 'laser_katana') {
+              sound.playLaserBeam();
+            } else if (evt.item === 'rubber_chicken') {
+              sound.playSqueak();
+            } else {
+              sound.playSlash();
+            }
+          } else if (evt.type === 'combat:hit') {
+            if (roomSession && evt.targetId === roomSession.playerId) {
+              sound.playHit();
+              playerVelocity.add(new THREE.Vector3(...evt.knockback));
+              currentHealth = Math.max(0, currentHealth - evt.damage);
+              setHealth(Math.round(currentHealth));
+              if (currentHealth <= 0) {
+                setKillFeed((kf) => [`Tagged by ${evt.attackerName}!`, ...kf.slice(0, 3)]);
+                respawnPlayer();
+              }
+            }
+          } else if (evt.type === 'scores:update') {
+            setCtfScore({ red: evt.scores.ctfRed, blue: evt.scores.ctfBlue });
+            setZombieWave(evt.scores.zombieWave || 1);
+            setRoomPlayers((prev) =>
+              prev.map((p) => {
+                const updated = evt.playerScores.find((ps) => ps.id === p.id);
+                return updated ? { ...p, score: updated.score, team: updated.team } : p;
+              })
+            );
+          } else if (evt.type === 'chat:message') {
+            setChatMessages((prev) => {
+              if (prev.some((m) => m.id === evt.message.id)) return prev;
+              const next = [...prev, evt.message];
+              return next.length > 50 ? next.slice(next.length - 50) : next;
+            });
+            if (!evt.message.isSystem && evt.message.senderId !== roomSession?.playerId) {
+              sound.playClick();
+            }
+          }
+        })
+      : () => {};
+
     if (isSoftwareGl) afterDraw(tick);
     else frameId = requestAnimationFrame(tick);
 
     return () => {
       cancelAnimationFrame(frameId);
       clearTimeout(frameId);
+      unsubMultiplayer();
       sound.stopBGM();
+      renderer.domElement.removeEventListener('webglcontextlost', onContextLost);
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
       container.removeEventListener('mousedown', onMouseDown);
@@ -1827,6 +2268,10 @@ export const GameViewport: React.FC<GameViewportProps> = ({
       container.removeEventListener('touchcancel', onTouchEnd);
       window.removeEventListener('resize', onResize);
 
+      remotePeers.forEach((peer) => {
+        scene.remove(peer.rig.root);
+      });
+      remotePeers.clear();
       worldRenderer.clear();
       paintballs.forEach((p) => {
         scene.remove(p.mesh);
@@ -1841,7 +2286,7 @@ export const GameViewport: React.FC<GameViewportProps> = ({
         container.removeChild(renderer.domElement);
       }
     };
-  }, [worldData, avatarConfig, userSettings]);
+  }, [worldData, avatarConfig, userSettings, isOnlineRoom, roomSession?.roomCode]);
 
   const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
     e.stopPropagation();
@@ -1894,13 +2339,31 @@ export const GameViewport: React.FC<GameViewportProps> = ({
       <div ref={mountRef} className="absolute inset-0 w-full h-full cursor-grab active:cursor-grabbing" />
 
       {/* Low-Occlusion Top Game HUD */}
-      <div className="absolute top-4 left-4 right-4 flex items-center justify-between pointer-events-none z-20">
-        <div className="flex items-center gap-3 bg-slate-900/80 border border-white/10 px-4 py-2 rounded-xl backdrop-blur-xs pointer-events-auto shadow-lg">
-          <div className="w-3 h-3 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50" />
-          <span className="font-bold text-sm tracking-wide text-white">{worldData.name}</span>
-          <span className="text-xs text-slate-400 font-mono">
-            {worldData.gameMode ? worldData.gameMode.toUpperCase() : 'SANDBOX'}
+      <div className="absolute top-4 left-4 right-4 flex items-center justify-between gap-2 pointer-events-none z-20">
+        <div className="flex items-center gap-2.5 bg-slate-900/85 border border-white/10 px-3.5 py-2 rounded-xl backdrop-blur-sm pointer-events-auto shadow-lg">
+          <span className="font-bold text-xs sm:text-sm tracking-wide text-white truncate max-w-[140px] sm:max-w-xs">
+            {worldData.name}
           </span>
+          <span className="text-slate-500">·</span>
+          {isOnlineRoom && roomSession ? (
+            <div className="flex items-center gap-2 text-xs font-mono tabular-nums">
+              <span className="text-emerald-400 font-bold">ROOM {roomSession.roomCode}</span>
+              <button
+                onClick={handleCopyRoomCode}
+                className="px-2 py-0.5 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-sans font-semibold cursor-pointer transition-colors"
+                title="Copy Invite Code"
+              >
+                {codeCopied ? 'Copied' : 'Copy'}
+              </button>
+              <span className="hidden md:inline text-slate-400">
+                {connectionStatus === 'reconnecting'
+                  ? 'Reconnecting...'
+                  : `${roomPlayers.length} ${roomPlayers.length === 1 ? 'Player' : 'Players'}`}
+              </span>
+            </div>
+          ) : (
+            <span className="text-xs text-slate-400 font-mono">Offline Solo</span>
+          )}
         </div>
 
         {/* Center: Dynamic Game Readouts */}
@@ -2098,8 +2561,35 @@ export const GameViewport: React.FC<GameViewportProps> = ({
           </div>
         </div>
 
-        {/* Right Action Tools: Fullscreen, Perspective, Ragdoll, Music, Quests, Emotes, Menu */}
+        {/* Right Action Tools: Players, Chat, Fullscreen, Perspective, Ragdoll, Music, Quests, Emotes, Menu */}
         <div className="flex items-center gap-1.5 sm:gap-2 pointer-events-auto">
+          {isOnlineRoom && (
+            <>
+              <button
+                onClick={() => {
+                  sound.playClick();
+                  setShowPlayersDrawer((v) => !v);
+                }}
+                title="Connected Players & Scores"
+                className="bg-slate-900/80 hover:bg-slate-800 border border-emerald-500/40 text-emerald-300 px-3 py-2 rounded-xl text-xs font-semibold backdrop-blur-xs transition-colors shadow-lg cursor-pointer flex items-center gap-1.5 whitespace-nowrap"
+              >
+                <span>👥</span>
+                <span className="hidden sm:inline tabular-nums">Players ({roomPlayers.length})</span>
+              </button>
+              <button
+                onClick={() => {
+                  sound.playClick();
+                  setIsChatOpen((v) => !v);
+                }}
+                title="Toggle Room Chat (T)"
+                className="bg-slate-900/80 hover:bg-slate-800 border border-sky-500/40 text-sky-300 px-3 py-2 rounded-xl text-xs font-semibold backdrop-blur-xs transition-colors shadow-lg cursor-pointer flex items-center gap-1.5 whitespace-nowrap"
+              >
+                <span>💬</span>
+                <span className="hidden sm:inline">Chat</span>
+              </button>
+            </>
+          )}
+
           {/* Daily Quests Trigger */}
           <button
             onClick={() => {
@@ -2577,12 +3067,43 @@ export const GameViewport: React.FC<GameViewportProps> = ({
             </div>
 
             <div className="flex flex-col gap-3">
+              {isOnlineRoom && roomSession && (
+                <div className="bg-slate-950/70 border border-emerald-500/30 rounded-xl p-3 flex items-center justify-between text-xs">
+                  <div className="text-left">
+                    <div className="text-slate-400">Friend Invite Code</div>
+                    <div className="font-mono font-bold text-emerald-400 text-sm tracking-widest">
+                      {roomSession.roomCode}
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleCopyRoomCode}
+                    className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold cursor-pointer"
+                  >
+                    {codeCopied ? 'Copied!' : 'Copy Code'}
+                  </button>
+                </div>
+              )}
+
               <button
                 onClick={() => setIsPaused(false)}
                 className="w-full bg-sky-600 hover:bg-sky-500 text-white font-bold py-3 rounded-xl transition-colors shadow-lg cursor-pointer text-sm"
               >
                 Resume Game
               </button>
+
+              {isOnlineRoom && onSwitchToOffline && (
+                <button
+                  onClick={() => {
+                    sound.playClick();
+                    setIsPaused(false);
+                    onSwitchToOffline();
+                  }}
+                  className="w-full bg-slate-800 hover:bg-slate-700 text-amber-300 font-semibold py-2.5 rounded-xl transition-colors cursor-pointer text-sm border border-amber-500/20"
+                >
+                  Switch to Offline Singleplayer
+                </button>
+              )}
+
               {onOpenAvatar && (
                 <button
                   onClick={() => {
@@ -2602,6 +3123,99 @@ export const GameViewport: React.FC<GameViewportProps> = ({
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Online Multiplayer: Players / Leaderboard Drawer */}
+      {isOnlineRoom && showPlayersDrawer && (
+        <div className="absolute top-16 right-4 z-40 w-64 bg-slate-900/95 border border-white/15 rounded-2xl p-3.5 shadow-2xl backdrop-blur-sm flex flex-col gap-2.5 pointer-events-auto">
+          <div className="flex items-center justify-between border-b border-white/10 pb-2">
+            <span className="text-xs font-bold text-white">Room Players ({roomPlayers.length})</span>
+            <button
+              onClick={() => setShowPlayersDrawer(false)}
+              className="text-xs text-slate-400 hover:text-white cursor-pointer"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="flex flex-col gap-1.5 max-h-56 overflow-y-auto">
+            {roomPlayers.map((p) => (
+              <div
+                key={p.id}
+                className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-slate-950/60 text-xs"
+              >
+                <div className="flex items-center gap-2 truncate">
+                  {p.team !== 'none' && (
+                    <span className={`font-bold ${p.team === 'red' ? 'text-red-400' : 'text-blue-400'}`}>
+                      {p.team === 'red' ? 'RED' : 'BLUE'}
+                    </span>
+                  )}
+                  <span className="text-slate-100 font-medium truncate">
+                    {p.nickname}
+                    {p.id === roomSession?.playerId ? ' (You)' : ''}
+                  </span>
+                </div>
+                <span className="font-mono text-amber-300 tabular-nums shrink-0">{p.score} pts</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Online Multiplayer: Live Room Chat Panel */}
+      {isOnlineRoom && isChatOpen && (
+        <div
+          className={`absolute z-30 pointer-events-auto bg-slate-900/85 border border-white/15 rounded-2xl shadow-2xl backdrop-blur-sm flex flex-col overflow-hidden ${
+            userSettings.showTouchControls
+              ? 'top-16 left-4 w-72 max-w-[calc(100vw-2rem)]'
+              : 'bottom-28 left-4 w-80 max-w-[calc(100vw-2rem)]'
+          }`}
+        >
+          <div className="px-3 py-2 border-b border-white/10 flex items-center justify-between text-xs">
+            <span className="font-bold text-slate-200">Room Chat</span>
+            <button
+              onClick={() => setIsChatOpen(false)}
+              className="text-slate-400 hover:text-white cursor-pointer text-xs"
+            >
+              Hide
+            </button>
+          </div>
+          <div
+            ref={chatLogRef}
+            className="h-36 overflow-y-auto px-3 py-2 flex flex-col gap-1.5 text-xs"
+          >
+            {chatMessages.map((m) => (
+              <div key={m.id} className={m.isSystem ? 'text-emerald-300/90 italic' : 'text-slate-200'}>
+                {!m.isSystem && (
+                  <span className="font-bold text-sky-300 mr-1.5">{m.senderName}:</span>
+                )}
+                <span className="break-words">{m.text}</span>
+              </div>
+            ))}
+          </div>
+          <form onSubmit={handleSendChat} className="p-2 border-t border-white/10 flex items-center gap-1.5">
+            <input
+              ref={chatInputRef}
+              type="text"
+              maxLength={160}
+              value={chatInput}
+              onFocus={() => {
+                isChatFocusedRef.current = true;
+              }}
+              onBlur={() => {
+                isChatFocusedRef.current = false;
+              }}
+              onChange={(e) => setChatInput(e.target.value)}
+              placeholder="Say something (T)..."
+              className="flex-1 bg-slate-950/90 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white focus:border-sky-500 outline-none"
+            />
+            <button
+              type="submit"
+              className="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold cursor-pointer shrink-0"
+            >
+              Send
+            </button>
+          </form>
         </div>
       )}
 

@@ -3,13 +3,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { AvatarConfig, BrickWorldData, PlayerStats, UserSettings } from '../types/game';
+import { AvatarConfig, BrickWorldData, PlayerStats, PlayMode, UserSettings } from '../types/game';
 import { ALL_BUILTIN_WORLDS, classicBaseplateWorld } from '../games/builtInWorlds';
 
 const STORAGE_KEY_CUSTOM_WORLDS = 'brickverse_custom_worlds_v1';
 const STORAGE_KEY_AVATAR = 'brickverse_avatar_v1';
 const STORAGE_KEY_SETTINGS = 'brickverse_settings_v1';
 const STORAGE_KEY_STATS = 'brickverse_player_stats_v1';
+const STORAGE_KEY_PLAY_MODE = 'brickverse_play_mode_v1';
+const STORAGE_KEY_NICKNAME = 'brickverse_nickname_v1';
 
 export const DEFAULT_AVATAR_CONFIG: AvatarConfig = {
   headColor: '#facc15', // Classic yellow
@@ -224,5 +226,43 @@ export class StorageManager {
     const custom = this.getCustomWorlds().find((w) => w.id === id);
     if (custom) return JSON.parse(JSON.stringify(custom));
     return undefined;
+  }
+
+  public static getPlayMode(): PlayMode {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY_PLAY_MODE);
+      return raw === 'online' ? 'online' : 'offline';
+    } catch {
+      return 'offline';
+    }
+  }
+
+  public static savePlayMode(mode: PlayMode) {
+    try {
+      localStorage.setItem(STORAGE_KEY_PLAY_MODE, mode);
+    } catch {
+      // ignore
+    }
+  }
+
+  public static getPlayerNickname(): string {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY_NICKNAME);
+      if (raw && raw.trim()) return raw.trim().slice(0, 18);
+      const generated = `Brick_${Math.floor(100 + Math.random() * 900)}`;
+      localStorage.setItem(STORAGE_KEY_NICKNAME, generated);
+      return generated;
+    } catch {
+      return 'BrickPlayer';
+    }
+  }
+
+  public static savePlayerNickname(name: string) {
+    try {
+      const cleaned = name.trim().slice(0, 18) || 'BrickPlayer';
+      localStorage.setItem(STORAGE_KEY_NICKNAME, cleaned);
+    } catch {
+      // ignore
+    }
   }
 }

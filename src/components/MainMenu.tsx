@@ -4,7 +4,7 @@
  */
 
 import React, { useRef, useState } from 'react';
-import { BrickWorldData, UserSettings, AvatarConfig, PlayerStats } from '../types/game';
+import { BrickWorldData, UserSettings, AvatarConfig, PlayerStats, PlayMode } from '../types/game';
 import { ALL_BUILTIN_WORLDS } from '../games/builtInWorlds';
 import { StorageManager } from '../storage/worldStorage';
 import { sound } from '../audio/soundEngine';
@@ -18,6 +18,11 @@ interface MainMenuProps {
   userSettings: UserSettings;
   onUpdateSettings: (settings: UserSettings) => void;
   playerStats: PlayerStats;
+  playMode: PlayMode;
+  onChangePlayMode: (mode: PlayMode) => void;
+  playerNickname: string;
+  onChangeNickname: (name: string) => void;
+  onOpenJoinRoom: () => void;
 }
 
 export const MainMenu: React.FC<MainMenuProps> = ({
@@ -28,6 +33,11 @@ export const MainMenu: React.FC<MainMenuProps> = ({
   userSettings,
   onUpdateSettings,
   playerStats,
+  playMode,
+  onChangePlayMode,
+  playerNickname,
+  onChangeNickname,
+  onOpenJoinRoom,
 }) => {
   const [activeTab, setActiveTab] = useState<'discover' | 'studio' | 'settings'>('discover');
   const [customWorlds, setCustomWorlds] = useState<BrickWorldData[]>(() => StorageManager.getCustomWorlds());
@@ -165,14 +175,79 @@ export const MainMenu: React.FC<MainMenuProps> = ({
 
       {/* TAB 1: DISCOVER GAMES */}
       {activeTab === 'discover' && (
-        <main className="flex-1 max-w-7xl w-full mx-auto p-6 md:p-10 flex flex-col gap-10">
+        <main className="flex-1 max-w-7xl w-full mx-auto p-6 md:p-10 flex flex-col gap-8">
+          {/* Play Mode Switcher & Friend Room Toolbar */}
+          <section className="rounded-2xl bg-slate-900/90 border border-white/10 p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 shadow-lg">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <div className="inline-flex items-center p-1 bg-slate-950 border border-white/10 rounded-xl self-start">
+                <button
+                  onClick={() => {
+                    sound.playClick();
+                    onChangePlayMode('offline');
+                  }}
+                  className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+                    playMode === 'offline'
+                      ? 'bg-sky-600 text-white shadow-sm'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Offline Singleplayer
+                </button>
+                <button
+                  onClick={() => {
+                    sound.playClick();
+                    onChangePlayMode('online');
+                  }}
+                  className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+                    playMode === 'online'
+                      ? 'bg-emerald-600 text-white shadow-sm'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Online Multiplayer
+                </button>
+              </div>
+              <span className="text-xs text-slate-400">
+                {playMode === 'online'
+                  ? 'Pick any game to host a private room or join a friend with a room code.'
+                  : 'Play solo immediately with AI bots and zero internet required.'}
+              </span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2.5">
+              <div className="flex items-center gap-2 bg-slate-950 border border-white/10 rounded-xl px-3 py-1.5">
+                <span className="text-xs text-slate-400 whitespace-nowrap">Nickname</span>
+                <input
+                  type="text"
+                  maxLength={18}
+                  value={playerNickname}
+                  onChange={(e) => onChangeNickname(e.target.value)}
+                  placeholder="Player name"
+                  className="bg-transparent text-xs font-semibold text-white w-28 sm:w-32 focus:outline-none"
+                />
+              </div>
+
+              {playMode === 'online' && (
+                <button
+                  onClick={() => {
+                    sound.playClick();
+                    onOpenJoinRoom();
+                  }}
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-4 py-2 rounded-xl transition-colors cursor-pointer whitespace-nowrap shrink-0 shadow-md shadow-emerald-950/40"
+                >
+                  Join Friend Code
+                </button>
+              )}
+            </div>
+          </section>
+
           {/* Spotlight Hero Banner */}
           <div className="relative rounded-3xl overflow-hidden bg-gradient-to-r from-sky-900 via-slate-900 to-indigo-950 border border-white/10 p-8 md:p-12 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-8">
             <div className="flex flex-col gap-3 max-w-xl">
               <div className="flex items-center gap-2 text-xs font-semibold text-sky-400 tracking-wider">
                 <span>OFFICIAL SPOTLIGHT</span>
                 <span>·</span>
-                <span>OFFLINE CREATIVE PLATFORM</span>
+                <span>{playMode === 'online' ? 'PRIVATE FRIEND ROOMS' : 'OFFLINE CREATIVE PLATFORM'}</span>
               </div>
               <h1 className="text-3xl md:text-5xl font-extrabold text-white tracking-tight text-balance">
                 Speed Run: Neon Galaxy
@@ -187,14 +262,14 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                     const world = ALL_BUILTIN_WORLDS.find((w) => w.id === 'game_speed_run')!;
                     onPlayWorld(world);
                   }}
-                  className="bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold px-7 py-3 rounded-xl transition-all shadow-lg shadow-sky-950/50 cursor-pointer flex items-center gap-2 text-sm"
+                  className="bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold px-7 py-3 rounded-xl transition-all shadow-lg shadow-sky-950/50 cursor-pointer flex items-center gap-2 text-sm whitespace-nowrap"
                 >
-                  <span>▶</span> Play Speed Run
+                  <span>▶</span> {playMode === 'online' ? 'Host / Join Speed Run' : 'Play Speed Run'}
                 </button>
                 <div className="flex items-center gap-3 text-xs text-slate-400 font-mono">
                   <span>★ 99% Rating</span>
                   <span>·</span>
-                  <span>5.2k Simulated Players</span>
+                  <span>{playMode === 'online' ? 'Up to 16 Friends' : 'Solo & AI Bots'}</span>
                 </div>
               </div>
             </div>
@@ -405,8 +480,12 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                   </div>
 
                   <div className="pt-4 border-t border-white/5 flex items-center justify-between mt-4">
-                    <span className="text-xs font-semibold text-sky-400 group-hover:underline">Play Experience →</span>
-                    <span className="text-[10px] text-slate-500 font-mono">Offline</span>
+                    <span className="text-xs font-semibold text-sky-400 group-hover:underline">
+                      {playMode === 'online' ? 'Host / Join Room →' : 'Play Experience →'}
+                    </span>
+                    <span className="text-[11px] text-slate-500 font-mono">
+                      {playMode === 'online' ? 'Online' : 'Offline'}
+                    </span>
                   </div>
                 </div>
               ))}
