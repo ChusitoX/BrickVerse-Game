@@ -7,8 +7,9 @@ import { defineConfig } from 'vite';
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig(() => {
-  const rawBase = process.env.VITE_BASE_PATH;
-  const base = rawBase ? (rawBase.endsWith('/') ? rawBase : `${rawBase}/`) : './';
+  const rawBase = (process.env.VITE_BASE_PATH || '').trim();
+  const cleanSegments = rawBase.replace(/^\/+|\/+$/g, '');
+  const base = rawBase ? (cleanSegments ? `/${cleanSegments}/` : '/') : './';
 
   return {
     base,
