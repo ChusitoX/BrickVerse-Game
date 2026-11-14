@@ -95,7 +95,12 @@ function getTodayString(): string {
 
 export function loadDailyMissions(): DailyMissionsState {
   const today = getTodayString();
-  const raw = localStorage.getItem(STORAGE_KEY);
+  let raw: string | null = null;
+  try {
+    raw = localStorage.getItem(STORAGE_KEY);
+  } catch {
+    raw = null;
+  }
 
   if (raw) {
     try {

@@ -78,7 +78,8 @@ BrickVerse is a 3D blocky toy game launcher, world builder studio, and avatar cu
 
 ## 🚀 Deployment to GitHub Pages
 
-1. Push this repository to GitHub.
+1. Push this repository to GitHub (`main` or `master` branch).
 2. In GitHub, go to **Settings** > **Pages**.
-3. Under **Build and deployment** > **Source**, choose **GitHub Actions**.
-4. The included `.github/workflows/deploy.yml` workflow will automatically build the Vite project and deploy it to `https://<username>.github.io/<repo>/`.
+3. Under **Build and deployment** > **Source**, choose **GitHub Actions** (do **not** leave it on *Deploy from a branch*, which serves the uncompiled source `index.html`).
+4. The included `.github/workflows/deploy.yml` workflow will automatically build the Vite project with your repository's base path and deploy it to `https://<username>.github.io/<repo>/`.
+5. **Offline Singleplayer** (all 42 worlds, World Studio, Avatar Editor, Daily Missions) works directly on GitHub Pages; **Online Multiplayer** rooms require hosting the Node.js + WebSocket server (`npm run build && NODE_ENV=production npm start`).

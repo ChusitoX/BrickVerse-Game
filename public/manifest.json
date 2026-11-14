@@ -2,7 +2,7 @@
   "name": "BrickVerse - 3D Sandbox & Games",
   "short_name": "BrickVerse",
   "description": "Offline 3D voxel sandbox platform and game engine with avatar creator and minigames",
-  "start_url": "/",
+  "start_url": ".",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#020617",

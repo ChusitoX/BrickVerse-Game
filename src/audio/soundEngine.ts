@@ -13,17 +13,22 @@ class SoundEngine {
   private bgmStep: number = 0;
 
   private init() {
-    if (!this.ctx) {
-      const AudioCtx =
-        window.AudioContext ||
-        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      this.ctx = new AudioCtx();
-      this.volumeNode = this.ctx.createGain();
-      this.volumeNode.gain.setValueAtTime(this.volume, this.ctx.currentTime);
-      this.volumeNode.connect(this.ctx.destination);
-    }
-    if (this.ctx.state === 'suspended') {
-      this.ctx.resume().catch(() => {});
+    try {
+      if (!this.ctx) {
+        const AudioCtx =
+          window.AudioContext ||
+          (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        if (!AudioCtx) return;
+        this.ctx = new AudioCtx();
+        this.volumeNode = this.ctx.createGain();
+        this.volumeNode.gain.setValueAtTime(this.volume, this.ctx.currentTime);
+        this.volumeNode.connect(this.ctx.destination);
+      }
+      if (this.ctx.state === 'suspended') {
+        this.ctx.resume().catch(() => {});
+      }
+    } catch {
+      // Ignore Web Audio restrictions
     }
   }
 

@@ -8,7 +8,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="BrickVerse" />
-    <link rel="manifest" href="/manifest.json" />
+    <link rel="manifest" href="./manifest.json" />
     <title>BrickVerse - 3D Offline Sandbox & Game Platform</title>
     <meta name="description" content="Offline 3D voxel sandbox platform and game engine featuring customizable avatars, built-in world creator studio, and classic minigames." />
     <meta property="og:title" content="BrickVerse - 3D Offline Sandbox & Game Platform" />
@@ -19,8 +19,40 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
   </head>
-  <body>
-    <div id="root"></div>
+  <body style="margin:0;background-color:#020617;color:#f1f5f9;font-family:'Plus Jakarta Sans',system-ui,-apple-system,sans-serif;">
+    <div id="root">
+      <div id="brickverse-boot" style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center;">
+        <div style="max-width:460px;">
+          <div style="font-size:40px;margin-bottom:12px;">🧱</div>
+          <div style="font-size:18px;font-weight:700;color:#ffffff;">Loading BrickVerse...</div>
+          <div id="brickverse-boot-help" style="display:none;margin-top:12px;font-size:13px;line-height:1.6;color:#94a3b8;"></div>
+        </div>
+      </div>
+    </div>
+    <script>
+      (function () {
+        function showHelp(reason) {
+          if (window.__BRICKVERSE_READY__) return;
+          var el = document.getElementById('brickverse-boot-help');
+          if (!el) return;
+          el.style.display = 'block';
+          el.innerHTML =
+            '<strong style="color:#f8fafc;">App bundle did not start (' + reason + ').</strong><br/><br/>' +
+            'If you opened this on <strong>GitHub Pages</strong>, make sure GitHub Pages is deploying the built app:<br/>' +
+            'Go to your repository <strong>Settings → Pages → Build and deployment → Source</strong> and select <strong>GitHub Actions</strong>, then re-run the workflow.';
+        }
+        window.addEventListener('error', function (e) {
+          if (!window.__BRICKVERSE_READY__) {
+            showHelp(e && e.message ? e.message : 'Script load error');
+          }
+        }, true);
+        setTimeout(function () {
+          if (!window.__BRICKVERSE_READY__) {
+            showHelp('Timeout loading module');
+          }
+        }, 3000);
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
